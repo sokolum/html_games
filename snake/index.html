@@ -1,4 +1,4 @@
-<!-- Snake HTML Game | Version 2.1.5 | Prevented accidental iPhone double-tap zoom, kept fixed mobile layout, retained Supabase online high scores and footer version | Made by Photoluck | Copyright © 2026 Photoluck -->
+<!-- Snake HTML Game | Version 2.1.6 | Moved all frequently changed settings to a configuration block directly below the page title in the HEAD section | Made by Photoluck | Copyright © 2026 Photoluck -->
 <!doctype html>
 <html lang="en">
 <head>
@@ -10,6 +10,46 @@
     >
 
     <title>Snake for iPhone</title>
+
+    <!-- =========================================================
+         APPLICATION CONFIGURATION
+         Change the settings below when creating a new version.
+         ========================================================= -->
+    <script>
+/*
+============================================================
+APPLICATION CONFIGURATION
+Change these values when creating a new release.
+============================================================
+*/
+
+const APP_NAME = "HTML Games - Snake";
+const APP_VERSION = "2.1.6";
+const APP_COPYRIGHT = "© 2026 XX";
+
+/*
+Game settings
+*/
+const CELL_SIZE = 20;
+const MAX_NAME_LENGTH = 10;
+const MAX_HIGH_SCORES_PER_SPEED = 25;
+
+/*
+Speed delays (milliseconds)
+*/
+const SPEED_DELAYS = {
+    1:220,
+    2:185,
+    3:150,
+    4:125,
+    5:100,
+    6:85,
+    7:70,
+    8:58,
+    9:48,
+    10:40
+};
+    </script>
 
     <style>
         * {
@@ -363,7 +403,10 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
+
 "use strict";
+
+
 
 /*
  * ============================================================
@@ -444,12 +487,6 @@ const exportButton =
  * ============================================================
  */
 
-const APP_NAME = "Snake HTML Game";
-const APP_VERSION = "2.1.5";
-const APP_COPYRIGHT = "© 2026 Photoluck";
-const CELL_SIZE = 20;
-const MAX_NAME_LENGTH = 10;
-const MAX_HIGH_SCORES_PER_SPEED = 25;
 
 const columns = canvas.width / CELL_SIZE;
 const rows = canvas.height / CELL_SIZE;
@@ -458,18 +495,7 @@ const rows = canvas.height / CELL_SIZE;
  * Speed 5 matches the original speed:
  * 100 milliseconds per game step.
  */
-const SPEED_DELAYS = {
-    1: 500,
-    2: 185,
-    3: 150,
-    4: 125,
-    5: 100,
-    6: 85,
-    7: 70,
-    8: 58,
-    9: 48,
-    10: 40
-};
+
 
 
 /*
