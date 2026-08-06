@@ -1,29 +1,43 @@
-<!-- snake html game made by Photoluck 6-8-2026 copyright -->
+<!-- Snake HTML Game | Version 2.1.0 | Added shared online high scores using Supabase, removed local score storage, added online refresh and export | Made by Photoluck | Copyright © 2026 Photoluck -->
 <!doctype html>
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
+    >
+
     <title>Snake for iPhone</title>
+
     <style>
-        * { box-sizing: border-box; }
-        html, body {
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
             margin: 0;
             width: 100%;
             min-height: 100%;
             overscroll-behavior: none;
         }
+
         body {
             padding: 10px 0 24px;
             overflow: hidden;
             background: #f2f2f2;
             font-family: Arial, sans-serif;
         }
-        .game-wrapper, .scores-wrapper {
+
+        .game-wrapper,
+        .scores-wrapper {
             display: flex;
             flex-direction: column;
             align-items: center;
         }
+
         #scoreDisplay {
             width: min(400px, calc(100vw - 20px));
             margin: 0;
@@ -33,6 +47,7 @@
             text-align: center;
             font-size: 18px;
         }
+
         #game {
             display: block;
             width: min(400px, calc(100vw - 20px));
@@ -44,6 +59,7 @@
             -webkit-user-select: none;
             -webkit-touch-callout: none;
         }
+
         .controls {
             position: relative;
             display: grid;
@@ -52,20 +68,25 @@
             width: min(400px, calc(100vw - 20px));
             margin-top: 10px;
         }
-        button, .speed-display {
+
+        button,
+        .speed-display {
             min-height: 48px;
             border: 0;
             font: bold 18px monospace;
         }
+
         button {
             color: white;
             background: black;
             cursor: pointer;
         }
+
         button:disabled {
             opacity: 0.45;
             cursor: default;
         }
+
         .speed-display {
             display: flex;
             align-items: center;
@@ -75,20 +96,24 @@
             text-align: center;
             line-height: 1.05;
         }
+
         .speed-display span {
             display: block;
             font-size: 22px;
         }
+
         .scores-wrapper {
             margin-top: 18px;
             width: 100%;
             overflow: hidden;
         }
+
         .scores-wrapper h3 {
             margin: 0 0 8px;
             color: blue;
             font: bold 20px monospace;
         }
+
         .score-table-wrap {
             width: min(400px, calc(100vw - 20px));
             height: 180px;
@@ -99,6 +124,7 @@
             -webkit-overflow-scrolling: touch;
             overscroll-behavior: contain;
         }
+
         #highscores {
             width: 100%;
             border-collapse: collapse;
@@ -107,10 +133,13 @@
             text-align: left;
             white-space: nowrap;
         }
-        #highscores th, #highscores td {
+
+        #highscores th,
+        #highscores td {
             padding: 5px 4px;
             border-bottom: 1px solid #ccc;
         }
+
         #highscores th {
             position: sticky;
             top: 0;
@@ -118,16 +147,22 @@
             color: #111;
             background: #e5e5e5;
         }
-        #highscores th:first-child, #highscores td:first-child,
-        #highscores th:nth-child(3), #highscores td:nth-child(3),
-        #highscores th:nth-child(4), #highscores td:nth-child(4) {
+
+        #highscores th:first-child,
+        #highscores td:first-child,
+        #highscores th:nth-child(3),
+        #highscores td:nth-child(3),
+        #highscores th:nth-child(4),
+        #highscores td:nth-child(4) {
             text-align: center;
         }
+
         .empty-score {
-            text-align: center !important;
-            color: #555;
             padding: 10px 4px !important;
+            color: #555;
+            text-align: center !important;
         }
+
         #statusMessage {
             min-height: 20px;
             margin: 8px 10px 0;
@@ -135,56 +170,159 @@
             font-size: 13px;
             text-align: center;
         }
-        .menu-wrap { position: relative; }
-        #menuButton { width: 100%; font-size: 23px; }
+
+        .menu-wrap {
+            position: relative;
+        }
+
+        #menuButton {
+            width: 100%;
+            font-size: 23px;
+        }
+
         .menu-panel {
             position: absolute;
             left: 0;
             top: calc(100% + 6px);
             z-index: 10;
             display: none;
-            width: 170px;
+            width: 190px;
             padding: 6px;
             border: 1px solid #777;
             background: white;
-            box-shadow: 0 4px 12px rgba(0,0,0,.25);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
         }
-        .menu-panel.open { display: grid; gap: 6px; }
-        .menu-panel button { min-height: 40px; font-size: 13px; }
-        #importFile { display: none; }
+
+        .menu-panel.open {
+            display: grid;
+            gap: 6px;
+        }
+
+        .menu-panel button {
+            min-height: 40px;
+            font-size: 13px;
+        }
+
         @media (max-height: 760px) {
-            #game { width: min(360px, calc(100vw - 20px), calc(100dvh - 315px)); }
-            #scoreDisplay, .controls, .score-table-wrap { width: min(360px, calc(100vw - 20px), calc(100dvh - 315px)); }
-            .score-table-wrap { height: 135px; }
+            #game {
+                width: min(
+                    360px,
+                    calc(100vw - 20px),
+                    calc(100dvh - 315px)
+                );
+            }
+
+            #scoreDisplay,
+            .controls,
+            .score-table-wrap {
+                width: min(
+                    360px,
+                    calc(100vw - 20px),
+                    calc(100dvh - 315px)
+                );
+            }
+
+            .score-table-wrap {
+                height: 135px;
+            }
         }
     </style>
 </head>
+
 <body>
+
 <div class="game-wrapper">
-    <h3 id="scoreDisplay">Eaten: 0 | Speed: 5</h3>
-    <canvas id="game" width="400" height="400"></canvas>
+
+    <h3 id="scoreDisplay">
+        Eaten: 0 | Speed: 5
+    </h3>
+
+    <canvas
+        id="game"
+        width="400"
+        height="400"
+    ></canvas>
 
     <div class="controls">
+
         <div class="menu-wrap">
-            <button id="menuButton" type="button" aria-label="Open score menu" aria-expanded="false">☰</button>
-            <div id="menuPanel" class="menu-panel">
-                <button id="exportButton" type="button">EXPORT SCORES</button>
-                <button id="importButton" type="button">IMPORT SCORES</button>
+
+            <button
+                id="menuButton"
+                type="button"
+                aria-label="Open score menu"
+                aria-expanded="false"
+            >
+                ☰
+            </button>
+
+            <div
+                id="menuPanel"
+                class="menu-panel"
+            >
+                <button
+                    id="refreshButton"
+                    type="button"
+                >
+                    REFRESH SCORES
+                </button>
+
+                <button
+                    id="exportButton"
+                    type="button"
+                >
+                    EXPORT SCORES
+                </button>
             </div>
+
         </div>
-        <button id="speedDown" type="button" aria-label="Decrease speed">−</button>
-        <button id="startButton" type="button">START</button>
-        <div class="speed-display">SPEED<span id="speedValue">5</span></div>
-        <button id="speedUp" type="button" aria-label="Increase speed">+</button>
+
+        <button
+            id="speedDown"
+            type="button"
+            aria-label="Decrease speed"
+        >
+            −
+        </button>
+
+        <button
+            id="startButton"
+            type="button"
+        >
+            START
+        </button>
+
+        <div class="speed-display">
+            SPEED
+            <span id="speedValue">5</span>
+        </div>
+
+        <button
+            id="speedUp"
+            type="button"
+            aria-label="Increase speed"
+        >
+            +
+        </button>
+
     </div>
-    <div id="statusMessage">Set the speed, then press SPACE or START.</div>
-    <input id="importFile" type="file" accept="application/json,.json">
+
+    <div id="statusMessage">
+        Connecting to the online high-score database...
+    </div>
+
 </div>
 
 <div class="scores-wrapper">
-    <h3 id="highScoresTitle">Top 25 — Speed 5</h3>
+
+    <h3 id="highScoresTitle">
+        Top 25 — Speed 5
+    </h3>
+
     <div class="score-table-wrap">
+
         <table id="highscores">
+
             <thead>
                 <tr>
                     <th>Rank</th>
@@ -194,52 +332,101 @@
                     <th>Date</th>
                 </tr>
             </thead>
+
             <tbody id="highscoresBody"></tbody>
+
         </table>
+
     </div>
+
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
 "use strict";
 
+/*
+ * ============================================================
+ * SUPABASE CONNECTION
+ * ============================================================
+ */
+
+const SUPABASE_URL =
+    "https://wubibqwcctvrnyiyuobt.supabase.co";
+
+const SUPABASE_PUBLISHABLE_KEY =
+    "sb_publishable_JUQpnazdqXlnuiflP3yg-w_iyEFhY7h";
+
+const database = window.supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_PUBLISHABLE_KEY
+);
+
+
+/*
+ * ============================================================
+ * PAGE ELEMENTS
+ * ============================================================
+ */
+
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
-const scoreDisplay = document.getElementById("scoreDisplay");
-const highScoresBody = document.getElementById("highscoresBody");
-const startButton = document.getElementById("startButton");
-const speedDownButton = document.getElementById("speedDown");
-const speedUpButton = document.getElementById("speedUp");
-const speedValue = document.getElementById("speedValue");
-const statusMessage = document.getElementById("statusMessage");
-const menuButton = document.getElementById("menuButton");
-const menuPanel = document.getElementById("menuPanel");
-const exportButton = document.getElementById("exportButton");
-const importButton = document.getElementById("importButton");
-const importFile = document.getElementById("importFile");
-const highScoresTitle = document.getElementById("highScoresTitle");
+
+const scoreDisplay =
+    document.getElementById("scoreDisplay");
+
+const highScoresBody =
+    document.getElementById("highscoresBody");
+
+const highScoresTitle =
+    document.getElementById("highScoresTitle");
+
+const startButton =
+    document.getElementById("startButton");
+
+const speedDownButton =
+    document.getElementById("speedDown");
+
+const speedUpButton =
+    document.getElementById("speedUp");
+
+const speedValue =
+    document.getElementById("speedValue");
+
+const statusMessage =
+    document.getElementById("statusMessage");
+
+const menuButton =
+    document.getElementById("menuButton");
+
+const menuPanel =
+    document.getElementById("menuPanel");
+
+const refreshButton =
+    document.getElementById("refreshButton");
+
+const exportButton =
+    document.getElementById("exportButton");
+
+
+/*
+ * ============================================================
+ * GAME SETTINGS
+ * ============================================================
+ */
 
 const CELL_SIZE = 20;
 const MAX_NAME_LENGTH = 10;
-const STORAGE_KEY = "snakeHighScoresV2";
 const MAX_HIGH_SCORES_PER_SPEED = 25;
+
 const columns = canvas.width / CELL_SIZE;
 const rows = canvas.height / CELL_SIZE;
 
-let snake = [];
-let food = null;
-let direction = { x: CELL_SIZE, y: 0 };
-let nextDirection = { ...direction };
-let score = 0;
-let selectedSpeed = 5;
-let gameSpeed = 5;
-let gameRunning = false;
-let gameOverFlag = true;
-let loopTimer = null;
-let directionChangedThisTick = false;
-let touchStartX = 0;
-let touchStartY = 0;
-
-// Speed 5 matches the original game speed: 100 ms per step.
+/*
+ * Speed 5 matches the original speed:
+ * 100 milliseconds per game step.
+ */
 const SPEED_DELAYS = {
     1: 220,
     2: 185,
@@ -253,171 +440,563 @@ const SPEED_DELAYS = {
     10: 40
 };
 
+
+/*
+ * ============================================================
+ * GAME VARIABLES
+ * ============================================================
+ */
+
+let snake = [];
+let food = null;
+
+let direction = {
+    x: CELL_SIZE,
+    y: 0
+};
+
+let nextDirection = {
+    ...direction
+};
+
+let score = 0;
+
+let selectedSpeed = 5;
+let gameSpeed = 5;
+
+let gameRunning = false;
+let loopTimer = null;
+
+let directionChangedThisTick = false;
+
+let touchStartX = 0;
+let touchStartY = 0;
+
+let onlineHighScores = [];
+
+
+/*
+ * ============================================================
+ * SPEED CONTROLS
+ * ============================================================
+ */
+
 function setSelectedSpeed(newSpeed) {
-    if (gameRunning) return;
-    selectedSpeed = Math.max(1, Math.min(10, newSpeed));
+
+    if (gameRunning) {
+        return;
+    }
+
+    selectedSpeed = Math.max(
+        1,
+        Math.min(10, newSpeed)
+    );
+
     speedValue.textContent = selectedSpeed;
-    scoreDisplay.textContent = `Eaten: ${score} | Speed: ${selectedSpeed}`;
-    speedDownButton.disabled = selectedSpeed === 1;
-    speedUpButton.disabled = selectedSpeed === 10;
-    renderHighScores(readHighScores());
+
+    scoreDisplay.textContent =
+        `Eaten: ${score} | Speed: ${selectedSpeed}`;
+
+    speedDownButton.disabled =
+        selectedSpeed === 1;
+
+    speedUpButton.disabled =
+        selectedSpeed === 10;
+
+    renderHighScores();
 }
 
-speedDownButton.addEventListener("click", () => setSelectedSpeed(selectedSpeed - 1));
-speedUpButton.addEventListener("click", () => setSelectedSpeed(selectedSpeed + 1));
-startButton.addEventListener("click", startGame);
+speedDownButton.addEventListener(
+    "click",
+    () => setSelectedSpeed(selectedSpeed - 1)
+);
+
+speedUpButton.addEventListener(
+    "click",
+    () => setSelectedSpeed(selectedSpeed + 1)
+);
+
+startButton.addEventListener(
+    "click",
+    startGame
+);
+
+
+/*
+ * ============================================================
+ * SCORE MENU
+ * ============================================================
+ */
 
 menuButton.addEventListener("click", event => {
+
     event.stopPropagation();
-    const isOpen = menuPanel.classList.toggle("open");
-    menuButton.setAttribute("aria-expanded", String(isOpen));
-});
-menuPanel.addEventListener("click", event => event.stopPropagation());
-document.addEventListener("click", () => {
-    menuPanel.classList.remove("open");
-    menuButton.setAttribute("aria-expanded", "false");
+
+    const isOpen =
+        menuPanel.classList.toggle("open");
+
+    menuButton.setAttribute(
+        "aria-expanded",
+        String(isOpen)
+    );
 });
 
+menuPanel.addEventListener(
+    "click",
+    event => event.stopPropagation()
+);
+
+document.addEventListener("click", () => {
+
+    menuPanel.classList.remove("open");
+
+    menuButton.setAttribute(
+        "aria-expanded",
+        "false"
+    );
+});
+
+refreshButton.addEventListener(
+    "click",
+    async () => {
+
+        closeMenu();
+
+        await loadOnlineHighScores(true);
+    }
+);
+
+exportButton.addEventListener(
+    "click",
+    exportOnlineHighScores
+);
+
+function closeMenu() {
+
+    menuPanel.classList.remove("open");
+
+    menuButton.setAttribute(
+        "aria-expanded",
+        "false"
+    );
+}
+
+
+/*
+ * ============================================================
+ * KEYBOARD CONTROLS
+ * ============================================================
+ */
+
 function requestDirection(requestedDirection) {
-    if (!requestedDirection || !gameRunning || directionChangedThisTick) return;
-    const isOpposite = requestedDirection.x === -direction.x && requestedDirection.y === -direction.y;
+
+    if (
+        !requestedDirection ||
+        !gameRunning ||
+        directionChangedThisTick
+    ) {
+        return;
+    }
+
+    const isOpposite =
+        requestedDirection.x === -direction.x &&
+        requestedDirection.y === -direction.y;
+
     if (!isOpposite) {
+
         nextDirection = requestedDirection;
         directionChangedThisTick = true;
     }
 }
 
 document.addEventListener("keydown", event => {
+
     const directions = {
-        ArrowUp: { x: 0, y: -CELL_SIZE },
-        ArrowDown: { x: 0, y: CELL_SIZE },
-        ArrowLeft: { x: -CELL_SIZE, y: 0 },
-        ArrowRight: { x: CELL_SIZE, y: 0 }
+        ArrowUp: {
+            x: 0,
+            y: -CELL_SIZE
+        },
+
+        ArrowDown: {
+            x: 0,
+            y: CELL_SIZE
+        },
+
+        ArrowLeft: {
+            x: -CELL_SIZE,
+            y: 0
+        },
+
+        ArrowRight: {
+            x: CELL_SIZE,
+            y: 0
+        }
     };
 
     if (directions[event.key]) {
+
         event.preventDefault();
-        requestDirection(directions[event.key]);
+
+        requestDirection(
+            directions[event.key]
+        );
+
         return;
     }
 
-    if ((event.code === "Space" || event.key === " ") && !gameRunning) {
+    if (
+        (event.code === "Space" ||
+         event.key === " ") &&
+        !gameRunning
+    ) {
         event.preventDefault();
         startGame();
     }
 });
 
-canvas.addEventListener("touchstart", event => {
-    event.preventDefault();
-    const touch = event.changedTouches[0];
-    touchStartX = touch.clientX;
-    touchStartY = touch.clientY;
-}, { passive: false });
 
-canvas.addEventListener("touchmove", event => event.preventDefault(), { passive: false });
+/*
+ * ============================================================
+ * TOUCH CONTROLS
+ * ============================================================
+ */
 
-canvas.addEventListener("touchend", event => {
-    event.preventDefault();
-    if (!gameRunning) return;
+canvas.addEventListener(
+    "touchstart",
+    event => {
 
-    const touch = event.changedTouches[0];
-    const deltaX = touch.clientX - touchStartX;
-    const deltaY = touch.clientY - touchStartY;
-    const minimumSwipe = 18;
+        event.preventDefault();
 
-    if (Math.max(Math.abs(deltaX), Math.abs(deltaY)) >= minimumSwipe) {
-        if (Math.abs(deltaX) > Math.abs(deltaY)) {
-            requestDirection(deltaX > 0 ? { x: CELL_SIZE, y: 0 } : { x: -CELL_SIZE, y: 0 });
-        } else {
-            requestDirection(deltaY > 0 ? { x: 0, y: CELL_SIZE } : { x: 0, y: -CELL_SIZE });
+        const touch =
+            event.changedTouches[0];
+
+        touchStartX =
+            touch.clientX;
+
+        touchStartY =
+            touch.clientY;
+    },
+    {
+        passive: false
+    }
+);
+
+canvas.addEventListener(
+    "touchmove",
+    event => event.preventDefault(),
+    {
+        passive: false
+    }
+);
+
+canvas.addEventListener(
+    "touchend",
+    event => {
+
+        event.preventDefault();
+
+        if (!gameRunning) {
+            return;
         }
-        return;
-    }
 
-    const rect = canvas.getBoundingClientRect();
-    const x = touch.clientX - rect.left - rect.width / 2;
-    const y = touch.clientY - rect.top - rect.height / 2;
+        const touch =
+            event.changedTouches[0];
 
-    if (Math.abs(x) > Math.abs(y)) {
-        requestDirection(x > 0 ? { x: CELL_SIZE, y: 0 } : { x: -CELL_SIZE, y: 0 });
-    } else {
-        requestDirection(y > 0 ? { x: 0, y: CELL_SIZE } : { x: 0, y: -CELL_SIZE });
+        const deltaX =
+            touch.clientX - touchStartX;
+
+        const deltaY =
+            touch.clientY - touchStartY;
+
+        const minimumSwipe = 18;
+
+        if (
+            Math.max(
+                Math.abs(deltaX),
+                Math.abs(deltaY)
+            ) >= minimumSwipe
+        ) {
+
+            if (
+                Math.abs(deltaX) >
+                Math.abs(deltaY)
+            ) {
+                requestDirection(
+                    deltaX > 0
+                        ? {
+                            x: CELL_SIZE,
+                            y: 0
+                        }
+                        : {
+                            x: -CELL_SIZE,
+                            y: 0
+                        }
+                );
+            } else {
+                requestDirection(
+                    deltaY > 0
+                        ? {
+                            x: 0,
+                            y: CELL_SIZE
+                        }
+                        : {
+                            x: 0,
+                            y: -CELL_SIZE
+                        }
+                );
+            }
+
+            return;
+        }
+
+        const rect =
+            canvas.getBoundingClientRect();
+
+        const x =
+            touch.clientX -
+            rect.left -
+            rect.width / 2;
+
+        const y =
+            touch.clientY -
+            rect.top -
+            rect.height / 2;
+
+        if (
+            Math.abs(x) >
+            Math.abs(y)
+        ) {
+            requestDirection(
+                x > 0
+                    ? {
+                        x: CELL_SIZE,
+                        y: 0
+                    }
+                    : {
+                        x: -CELL_SIZE,
+                        y: 0
+                    }
+            );
+        } else {
+            requestDirection(
+                y > 0
+                    ? {
+                        x: 0,
+                        y: CELL_SIZE
+                    }
+                    : {
+                        x: 0,
+                        y: -CELL_SIZE
+                    }
+            );
+        }
+    },
+    {
+        passive: false
     }
-}, { passive: false });
+);
+
+
+/*
+ * ============================================================
+ * START GAME
+ * ============================================================
+ */
 
 function startGame() {
-    if (loopTimer !== null) clearTimeout(loopTimer);
+
+    if (loopTimer !== null) {
+
+        clearTimeout(loopTimer);
+        loopTimer = null;
+    }
 
     gameSpeed = selectedSpeed;
-    snake = [{ x: 200, y: 200 }];
-    direction = { x: CELL_SIZE, y: 0 };
-    nextDirection = { ...direction };
+
+    snake = [
+        {
+            x: 200,
+            y: 200
+        }
+    ];
+
+    direction = {
+        x: CELL_SIZE,
+        y: 0
+    };
+
+    nextDirection = {
+        ...direction
+    };
+
     directionChangedThisTick = false;
+
     score = 0;
     gameRunning = true;
-    gameOverFlag = false;
+
     food = createFood();
 
     speedDownButton.disabled = true;
     speedUpButton.disabled = true;
+
     startButton.disabled = true;
     startButton.textContent = "RUNNING";
-    statusMessage.textContent = "Use Arrow Keys, swipe, or tap the game area to steer.";
+
+    statusMessage.textContent =
+        "Use Arrow Keys, swipe, or tap the game area to steer.";
 
     updateScore();
     drawGame();
     scheduleNextTick();
 }
 
+
+/*
+ * ============================================================
+ * CREATE FOOD
+ * ============================================================
+ */
+
 function createFood() {
+
     const freeCells = [];
-    for (let row = 0; row < rows; row++) {
-        for (let column = 0; column < columns; column++) {
-            const candidate = { x: column * CELL_SIZE, y: row * CELL_SIZE };
-            if (!snake.some(segment => segment.x === candidate.x && segment.y === candidate.y)) {
+
+    for (
+        let row = 0;
+        row < rows;
+        row++
+    ) {
+        for (
+            let column = 0;
+            column < columns;
+            column++
+        ) {
+
+            const candidate = {
+                x: column * CELL_SIZE,
+                y: row * CELL_SIZE
+            };
+
+            const cellIsOccupied =
+                snake.some(
+                    segment =>
+                        segment.x === candidate.x &&
+                        segment.y === candidate.y
+                );
+
+            if (!cellIsOccupied) {
                 freeCells.push(candidate);
             }
         }
     }
-    return freeCells.length ? freeCells[Math.floor(Math.random() * freeCells.length)] : null;
+
+    if (!freeCells.length) {
+        return null;
+    }
+
+    return freeCells[
+        Math.floor(
+            Math.random() *
+            freeCells.length
+        )
+    ];
 }
+
+
+/*
+ * ============================================================
+ * SCORE DISPLAY
+ * ============================================================
+ */
 
 function updateScore() {
-    scoreDisplay.textContent = `Eaten: ${score} | Speed: ${gameRunning ? gameSpeed : selectedSpeed}`;
+
+    const displayedSpeed =
+        gameRunning
+            ? gameSpeed
+            : selectedSpeed;
+
+    scoreDisplay.textContent =
+        `Eaten: ${score} | Speed: ${displayedSpeed}`;
 }
 
+
+/*
+ * ============================================================
+ * GAME LOOP
+ * ============================================================
+ */
+
 function scheduleNextTick() {
-    loopTimer = setTimeout(gameLoop, SPEED_DELAYS[gameSpeed]);
+
+    loopTimer = setTimeout(
+        gameLoop,
+        SPEED_DELAYS[gameSpeed]
+    );
 }
 
 function gameLoop() {
+
     loopTimer = null;
-    if (!gameRunning) return;
+
+    if (!gameRunning) {
+        return;
+    }
 
     direction = nextDirection;
     directionChangedThisTick = false;
 
-    const head = { x: snake[0].x + direction.x, y: snake[0].y + direction.y };
-    const hitsWall = head.x < 0 || head.y < 0 || head.x >= canvas.width || head.y >= canvas.height;
-    const willEat = food && head.x === food.x && head.y === food.y;
-    const bodyToCheck = willEat ? snake : snake.slice(0, -1);
-    const hitsSnake = bodyToCheck.some(segment => segment.x === head.x && segment.y === head.y);
+    const head = {
+        x: snake[0].x + direction.x,
+        y: snake[0].y + direction.y
+    };
+
+    const hitsWall =
+        head.x < 0 ||
+        head.y < 0 ||
+        head.x >= canvas.width ||
+        head.y >= canvas.height;
+
+    const willEat =
+        food &&
+        head.x === food.x &&
+        head.y === food.y;
+
+    const bodyToCheck =
+        willEat
+            ? snake
+            : snake.slice(0, -1);
+
+    const hitsSnake =
+        bodyToCheck.some(
+            segment =>
+                segment.x === head.x &&
+                segment.y === head.y
+        );
 
     if (hitsWall || hitsSnake) {
+
         endGame(false);
         return;
     }
 
     snake.unshift(head);
+
     if (willEat) {
+
         score++;
         food = createFood();
+
         updateScore();
+
         if (!food) {
+
             endGame(true);
             return;
         }
+
     } else {
+
         snake.pop();
     }
 
@@ -425,187 +1004,574 @@ function gameLoop() {
     scheduleNextTick();
 }
 
+
+/*
+ * ============================================================
+ * DRAW GAME
+ * ============================================================
+ */
+
 function drawGame() {
+
     ctx.fillStyle = "black";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.fillRect(
+        0,
+        0,
+        canvas.width,
+        canvas.height
+    );
+
     ctx.fillStyle = "green";
-    snake.forEach(segment => ctx.fillRect(segment.x, segment.y, CELL_SIZE, CELL_SIZE));
+
+    snake.forEach(segment => {
+
+        ctx.fillRect(
+            segment.x,
+            segment.y,
+            CELL_SIZE,
+            CELL_SIZE
+        );
+    });
+
     if (food) {
+
         ctx.fillStyle = "red";
-        ctx.fillRect(food.x, food.y, CELL_SIZE, CELL_SIZE);
+
+        ctx.fillRect(
+            food.x,
+            food.y,
+            CELL_SIZE,
+            CELL_SIZE
+        );
     }
 }
 
+
+/*
+ * ============================================================
+ * END GAME
+ * ============================================================
+ */
+
 async function endGame(won) {
+
     gameRunning = false;
-    gameOverFlag = true;
+
     if (loopTimer !== null) {
+
         clearTimeout(loopTimer);
         loopTimer = null;
     }
 
     drawGame();
+
     ctx.fillStyle = "white";
     ctx.font = "40px monospace";
     ctx.textAlign = "center";
-    ctx.fillText(won ? "YOU WIN" : "GAME OVER", canvas.width / 2, canvas.height / 2);
+
+    ctx.fillText(
+        won
+            ? "YOU WIN"
+            : "GAME OVER",
+        canvas.width / 2,
+        canvas.height / 2
+    );
 
     startButton.disabled = false;
     startButton.textContent = "RESTART";
-    setSelectedSpeed(selectedSpeed);
-    statusMessage.textContent = "Choose a speed, then press SPACE or RESTART.";
 
-    if (score > 1) {
-        const enteredName = prompt(`Game over! Enter your name (maximum ${MAX_NAME_LENGTH} characters):`);
-        const name = enteredName ? enteredName.trim().slice(0, MAX_NAME_LENGTH).replace(/[^a-zA-Z0-9 _-]/g, "") : "";
-        if (name) saveHighScore(name, score, gameSpeed);
-    }
-}
+    speedDownButton.disabled =
+        selectedSpeed === 1;
 
-function readHighScores() {
-    try {
-        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-        return Array.isArray(saved) ? saved : [];
-    } catch (error) {
-        return [];
-    }
-}
+    speedUpButton.disabled =
+        selectedSpeed === 10;
 
-function writeHighScores(scores) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(scores));
-}
+    updateScore();
 
-function saveHighScore(name, savedScore, speed) {
-    const scores = readHighScores();
-    scores.push({
-        name,
-        score: savedScore,
-        speed,
-        date: new Date().toISOString()
-    });
-    const limitedScores = keepBestScoresPerSpeed(scores);
-    writeHighScores(limitedScores);
-    renderHighScores(limitedScores);
-    statusMessage.textContent = "High score saved on this iPhone.";
-}
+    statusMessage.textContent =
+        "Choose a speed, then press SPACE or RESTART.";
 
-function keepBestScoresPerSpeed(scores) {
-    const result = [];
-    for (let speed = 1; speed <= 10; speed++) {
-        const levelScores = scores
-            .filter(entry => Number(entry.speed) === speed)
-            .sort((a, b) => b.score - a.score || new Date(a.date) - new Date(b.date))
-            .slice(0, MAX_HIGH_SCORES_PER_SPEED);
-        result.push(...levelScores);
-    }
-    return result;
-}
-
-function loadHighScores() {
-    renderHighScores(readHighScores());
-}
-
-exportButton.addEventListener("click", () => {
-    const scores = readHighScores();
-    const blob = new Blob([JSON.stringify(scores, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `snake-highscores-${new Date().toISOString().slice(0, 10)}.json`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-    menuPanel.classList.remove("open");
-    menuButton.setAttribute("aria-expanded", "false");
-    statusMessage.textContent = "Choose where to save the JSON file on your iPhone.";
-});
-
-importButton.addEventListener("click", () => importFile.click());
-
-importFile.addEventListener("change", async () => {
-    const file = importFile.files && importFile.files[0];
-    if (!file) return;
-    try {
-        const imported = JSON.parse(await file.text());
-        if (!Array.isArray(imported)) throw new Error("Invalid file");
-        const cleaned = imported
-            .filter(item => item && typeof item.name === "string" && Number.isFinite(Number(item.score)))
-            .map(item => ({
-                name: item.name.trim().slice(0, MAX_NAME_LENGTH).replace(/[^a-zA-Z0-9 _-]/g, ""),
-                score: Math.max(0, Math.floor(Number(item.score))),
-                speed: Math.max(1, Math.min(10, Math.floor(Number(item.speed) || 5))),
-                date: item.date && !Number.isNaN(new Date(item.date).getTime()) ? item.date : new Date().toISOString()
-            }))
-            .filter(item => item.name);
-        const limitedScores = keepBestScoresPerSpeed(cleaned);
-        writeHighScores(limitedScores);
-        renderHighScores(limitedScores);
-        menuPanel.classList.remove("open");
-        menuButton.setAttribute("aria-expanded", "false");
-        statusMessage.textContent = "High scores imported.";
-    } catch (error) {
-        statusMessage.textContent = "This is not a valid Snake high-score file.";
-    } finally {
-        importFile.value = "";
-    }
-});
-
-function renderHighScores(scores) {
-    const selectedScores = scores
-        .filter(entry => Number(entry.speed) === selectedSpeed)
-        .sort((a, b) => b.score - a.score || new Date(a.date) - new Date(b.date))
-        .slice(0, MAX_HIGH_SCORES_PER_SPEED);
-
-    highScoresTitle.textContent = `Top 25 — Speed ${selectedSpeed}`;
-    highScoresBody.innerHTML = "";
-    if (!selectedScores.length) {
-        const row = document.createElement("tr");
-        const cell = document.createElement("td");
-        cell.colSpan = 5;
-        cell.className = "empty-score";
-        cell.textContent = `No high scores for Speed ${selectedSpeed}.`;
-        row.appendChild(cell);
-        highScoresBody.appendChild(row);
+    if (score <= 1) {
         return;
     }
 
-    selectedScores.forEach((entry, index) => {
-        const date = new Date(entry.date);
-        const formattedDate = Number.isNaN(date.getTime())
-            ? String(entry.date || "")
-            : date.toLocaleString("en-GB", {
-                day: "2-digit",
-                month: "2-digit",
-                year: "numeric",
-                hour: "2-digit",
-                minute: "2-digit"
-            });
+    const enteredName = prompt(
+        `Game over! Enter your name (maximum ${MAX_NAME_LENGTH} characters):`
+    );
 
-        const row = document.createElement("tr");
-        [index + 1, entry.name, entry.score, entry.speed, formattedDate].forEach(value => {
-            const cell = document.createElement("td");
-            cell.textContent = value;
-            row.appendChild(cell);
-        });
-        highScoresBody.appendChild(row);
-    });
+    const cleanName =
+        cleanPlayerName(enteredName);
+
+    if (!cleanName) {
+
+        statusMessage.textContent =
+            "The score was not saved because no valid name was entered.";
+
+        return;
+    }
+
+    await saveOnlineHighScore(
+        cleanName,
+        score,
+        gameSpeed
+    );
 }
 
+
+/*
+ * ============================================================
+ * CLEAN PLAYER NAME
+ * ============================================================
+ */
+
+function cleanPlayerName(name) {
+
+    if (!name) {
+        return "";
+    }
+
+    return String(name)
+        .trim()
+        .slice(0, MAX_NAME_LENGTH)
+        .replace(
+            /[^a-zA-Z0-9 _-]/g,
+            ""
+        )
+        .trim();
+}
+
+
+/*
+ * ============================================================
+ * SAVE SCORE TO SUPABASE
+ * ============================================================
+ */
+
+async function saveOnlineHighScore(
+    playerName,
+    playerScore,
+    speed
+) {
+
+    const cleanName =
+        cleanPlayerName(playerName);
+
+    const cleanScore =
+        Math.max(
+            0,
+            Math.floor(
+                Number(playerScore)
+            )
+        );
+
+    const cleanSpeed =
+        Math.max(
+            1,
+            Math.min(
+                10,
+                Math.floor(
+                    Number(speed)
+                )
+            )
+        );
+
+    if (!cleanName) {
+
+        statusMessage.textContent =
+            "The score was not saved because the name is invalid.";
+
+        return;
+    }
+
+    statusMessage.textContent =
+        "Saving high score online...";
+
+    try {
+
+        const {
+            error
+        } = await database
+            .from("highscores")
+            .insert({
+                player_name: cleanName,
+                score: cleanScore,
+                speed: cleanSpeed
+            });
+
+        if (error) {
+            throw error;
+        }
+
+        await loadOnlineHighScores(false);
+
+        statusMessage.textContent =
+            "High score saved online. All players can now see it.";
+
+    } catch (error) {
+
+        console.error(
+            "Saving the high score failed:",
+            error
+        );
+
+        statusMessage.textContent =
+            "The high score could not be saved online.";
+    }
+}
+
+
+/*
+ * ============================================================
+ * LOAD SCORES FROM SUPABASE
+ * ============================================================
+ */
+
+async function loadOnlineHighScores(
+    showLoadingMessage = true
+) {
+
+    if (showLoadingMessage) {
+
+        statusMessage.textContent =
+            "Loading online high scores...";
+    }
+
+    try {
+
+        const {
+            data,
+            error
+        } = await database
+            .from("highscores")
+            .select(
+                "player_name, score, speed, created_at"
+            )
+            .order(
+                "score",
+                {
+                    ascending: false
+                }
+            )
+            .order(
+                "created_at",
+                {
+                    ascending: true
+                }
+            )
+            .limit(250);
+
+        if (error) {
+            throw error;
+        }
+
+        onlineHighScores =
+            (data || []).map(
+                entry => ({
+                    name:
+                        entry.player_name,
+
+                    score:
+                        Number(entry.score),
+
+                    speed:
+                        Number(entry.speed),
+
+                    date:
+                        entry.created_at
+                })
+            );
+
+        onlineHighScores =
+            keepBestScoresPerSpeed(
+                onlineHighScores
+            );
+
+        renderHighScores();
+
+        if (showLoadingMessage) {
+
+            statusMessage.textContent =
+                "Online high scores loaded. Set the speed, then press SPACE or START.";
+        }
+
+    } catch (error) {
+
+        console.error(
+            "Loading high scores failed:",
+            error
+        );
+
+        renderHighScores();
+
+        statusMessage.textContent =
+            "Online high scores could not be loaded. Check the internet connection.";
+    }
+}
+
+
+/*
+ * ============================================================
+ * KEEP THE BEST 25 SCORES PER SPEED
+ * ============================================================
+ */
+
+function keepBestScoresPerSpeed(scores) {
+
+    const result = [];
+
+    for (
+        let speed = 1;
+        speed <= 10;
+        speed++
+    ) {
+
+        const levelScores =
+            scores
+                .filter(
+                    entry =>
+                        Number(entry.speed) === speed
+                )
+                .sort(
+                    (a, b) =>
+                        b.score - a.score ||
+                        new Date(a.date) -
+                        new Date(b.date)
+                )
+                .slice(
+                    0,
+                    MAX_HIGH_SCORES_PER_SPEED
+                );
+
+        result.push(
+            ...levelScores
+        );
+    }
+
+    return result;
+}
+
+
+/*
+ * ============================================================
+ * DISPLAY HIGH SCORES
+ * ============================================================
+ */
+
+function renderHighScores() {
+
+    const selectedScores =
+        onlineHighScores
+            .filter(
+                entry =>
+                    Number(entry.speed) ===
+                    selectedSpeed
+            )
+            .sort(
+                (a, b) =>
+                    b.score - a.score ||
+                    new Date(a.date) -
+                    new Date(b.date)
+            )
+            .slice(
+                0,
+                MAX_HIGH_SCORES_PER_SPEED
+            );
+
+    highScoresTitle.textContent =
+        `Top 25 — Speed ${selectedSpeed}`;
+
+    highScoresBody.innerHTML = "";
+
+    if (!selectedScores.length) {
+
+        const row =
+            document.createElement("tr");
+
+        const cell =
+            document.createElement("td");
+
+        cell.colSpan = 5;
+        cell.className = "empty-score";
+
+        cell.textContent =
+            `No online high scores for Speed ${selectedSpeed}.`;
+
+        row.appendChild(cell);
+        highScoresBody.appendChild(row);
+
+        return;
+    }
+
+    selectedScores.forEach(
+        (entry, index) => {
+
+            const date =
+                new Date(entry.date);
+
+            const formattedDate =
+                Number.isNaN(
+                    date.getTime()
+                )
+                    ? String(
+                        entry.date || ""
+                    )
+                    : date.toLocaleString(
+                        "en-GB",
+                        {
+                            day: "2-digit",
+                            month: "2-digit",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit"
+                        }
+                    );
+
+            const row =
+                document.createElement("tr");
+
+            const values = [
+                index + 1,
+                entry.name,
+                entry.score,
+                entry.speed,
+                formattedDate
+            ];
+
+            values.forEach(value => {
+
+                const cell =
+                    document.createElement("td");
+
+                cell.textContent = value;
+
+                row.appendChild(cell);
+            });
+
+            highScoresBody.appendChild(row);
+        }
+    );
+}
+
+
+/*
+ * ============================================================
+ * EXPORT ONLINE SCORES
+ * ============================================================
+ */
+
+function exportOnlineHighScores() {
+
+    const exportData =
+        onlineHighScores.map(
+            entry => ({
+                name: entry.name,
+                score: entry.score,
+                speed: entry.speed,
+                date: entry.date
+            })
+        );
+
+    const blob = new Blob(
+        [
+            JSON.stringify(
+                exportData,
+                null,
+                2
+            )
+        ],
+        {
+            type: "application/json"
+        }
+    );
+
+    const url =
+        URL.createObjectURL(blob);
+
+    const link =
+        document.createElement("a");
+
+    link.href = url;
+
+    link.download =
+        `snake-online-highscores-${new Date()
+            .toISOString()
+            .slice(0, 10)}.json`;
+
+    document.body.appendChild(link);
+
+    link.click();
+    link.remove();
+
+    setTimeout(
+        () => URL.revokeObjectURL(url),
+        1000
+    );
+
+    closeMenu();
+
+    statusMessage.textContent =
+        "The online high scores were exported.";
+}
+
+
+/*
+ * ============================================================
+ * START SCREEN
+ * ============================================================
+ */
+
 function drawStartScreen() {
+
     ctx.fillStyle = "black";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.fillRect(
+        0,
+        0,
+        canvas.width,
+        canvas.height
+    );
+
     ctx.fillStyle = "white";
     ctx.font = "28px monospace";
     ctx.textAlign = "center";
-    ctx.fillText("PRESS SPACE", canvas.width / 2, canvas.height / 2 - 12);
+
+    ctx.fillText(
+        "PRESS SPACE",
+        canvas.width / 2,
+        canvas.height / 2 - 12
+    );
+
     ctx.font = "18px monospace";
-    ctx.fillText("OR TAP START", canvas.width / 2, canvas.height / 2 + 22);
+
+    ctx.fillText(
+        "OR TAP START",
+        canvas.width / 2,
+        canvas.height / 2 + 22
+    );
 }
 
-setSelectedSpeed(5);
-drawStartScreen();
-loadHighScores();
+
+/*
+ * ============================================================
+ * INITIALIZE GAME
+ * ============================================================
+ */
+
+async function initializeGame() {
+
+    setSelectedSpeed(5);
+
+    drawStartScreen();
+
+    renderHighScores();
+
+    await loadOnlineHighScores(true);
+}
+
+initializeGame();
+
 </script>
+
 </body>
 </html>
