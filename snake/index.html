@@ -1,4 +1,4 @@
-<!-- Snake HTML Game | Version 2.1.2 | Added footer version information and centralized version variables | Made by Photoluck | Copyright © 2026 Photoluck -->
+<!-- Snake HTML Game | Version 2.1.4 | Prevented accidental iPhone double-tap zoom, kept fixed mobile layout, retained Supabase online high scores and footer version | Made by Photoluck | Copyright © 2026 Photoluck -->
 <!doctype html>
 <html lang="en">
 <head>
@@ -22,6 +22,8 @@
             width: 100%;
             min-height: 100%;
             overscroll-behavior: none;
+            touch-action: manipulation;
+            -webkit-text-size-adjust: 100%;
         }
 
         body {
@@ -42,20 +44,11 @@
             position: relative;
             width: min(400px, calc(100vw - 20px));
             margin: 0;
-            padding: 10px 58px 10px 4px;
+            padding: 10px 4px;
             color: white;
             background: red;
             text-align: center;
             font-size: 18px;
-        }
-
-        #versionDisplay {
-            position: absolute;
-            top: 50%;
-            right: 8px;
-            transform: translateY(-50%);
-            font: bold 12px monospace;
-            white-space: nowrap;
         }
 
         #game {
@@ -90,6 +83,7 @@
             color: white;
             background: black;
             cursor: pointer;
+            touch-action: manipulation;
         }
 
         button:disabled {
@@ -255,7 +249,6 @@
 
     <h3 id="scoreDisplay">
         <span id="scoreText">Eaten: 0 | Speed: 5</span>
-        <span id="versionDisplay" aria-label="Game version"></span>
     </h3>
 
     <canvas
@@ -405,9 +398,6 @@ const scoreDisplay =
 const scoreText =
     document.getElementById("scoreText");
 
-const versionDisplay =
-    document.getElementById("versionDisplay");
-
 const footerVersion =
     document.getElementById("footerVersion");
 
@@ -455,7 +445,7 @@ const exportButton =
  */
 
 const APP_NAME = "Snake HTML Game";
-const APP_VERSION = "2.1.2";
+const APP_VERSION = "2.1.4";
 const APP_COPYRIGHT = "© 2026 Photoluck";
 const CELL_SIZE = 20;
 const MAX_NAME_LENGTH = 10;
@@ -1595,13 +1585,39 @@ function drawStartScreen() {
 
 /*
  * ============================================================
+ * PREVENT ACCIDENTAL MOBILE ZOOM
+ * ============================================================
+ */
+
+document.addEventListener("dblclick", event => {
+    event.preventDefault();
+}, { passive: false });
+
+let lastDocumentTouchEnd = 0;
+
+document.addEventListener("touchend", event => {
+    const now = Date.now();
+
+    if (now - lastDocumentTouchEnd < 300) {
+        event.preventDefault();
+    }
+
+    lastDocumentTouchEnd = now;
+}, { passive: false });
+
+document.addEventListener("gesturestart", event => {
+    event.preventDefault();
+}, { passive: false });
+
+
+/*
+ * ============================================================
  * INITIALIZE GAME
  * ============================================================
  */
 
 async function initializeGame() {
 
-    versionDisplay.textContent = `V${APP_VERSION}`;
     footerVersion.textContent = `${APP_NAME} v${APP_VERSION}`;
     footerCopyright.textContent = APP_COPYRIGHT;
     setSelectedSpeed(5);
