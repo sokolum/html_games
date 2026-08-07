@@ -7,859 +7,177 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <title>Pong Duo</title>
 
+  <!-- =========================================================
+       PONG DUO - VERSION
+       Change this single value when creating a new version.
+  ========================================================== -->
+  <script>
+    const PONG_DUO_VERSION = "2.0.12";
+  </script>
+
   <style>
-    :root{
-      --bg:#05070d;
-      --panel:#0b1120;
-      --line:rgba(255,255,255,.13);
-      --text:#f5f7ff;
-      --muted:#9ca8bf;
-      --cyan:#38d7ff;
-      --pink:#ff5b8a;
-      --purple:#8a5cff;
-    }
-
-    *{
-      box-sizing:border-box;
-      -webkit-tap-highlight-color:transparent;
-      user-select:none;
-    }
-
-    html,body{
-      margin:0;
-      width:100%;
-      height:100%;
-      overflow:hidden;
-      background:#03050a;
-      color:var(--text);
-      font-family:Arial,Helvetica,sans-serif;
-      touch-action:none;
-    }
-
-    body{
-      position:fixed;
-      inset:0;
-    }
-
-    button,input{
-      font:inherit;
-    }
-
-    #app{
-      width:100%;
-      height:100%;
-      padding:
-        max(8px,env(safe-area-inset-top))
-        max(8px,env(safe-area-inset-right))
-        max(8px,env(safe-area-inset-bottom))
-        max(8px,env(safe-area-inset-left));
-
-      background:
-        radial-gradient(circle at 25% 30%,rgba(0,180,255,.08),transparent 30%),
-        radial-gradient(circle at 80% 35%,rgba(255,0,100,.08),transparent 30%),
-        linear-gradient(180deg,#05070d,#020307);
-    }
-
-    #layout{
-      width:100%;
-      height:100%;
-      display:grid;
-      grid-template-columns:170px 300px minmax(420px,1fr);
-      gap:10px;
-    }
-
-    .panel{
-      border:1px solid var(--line);
-      border-radius:20px;
-      background:linear-gradient(180deg,rgba(12,18,32,.96),rgba(7,11,20,.96));
-      box-shadow:0 24px 70px rgba(0,0,0,.45);
-      overflow:hidden;
-    }
-
-    .column{
-      padding:14px;
-      display:flex;
-      flex-direction:column;
-      min-height:0;
-    }
-
-    .title-small{
-      text-align:center;
-      font-weight:900;
-      font-size:19px;
-      letter-spacing:.04em;
-    }
-
-    .subtitle-small{
-      text-align:center;
-      color:var(--muted);
-      font-size:11px;
-      margin-top:4px;
-      line-height:1.35;
-    }
-
-    #levelGrid{
-      display:grid;
-      grid-template-columns:1fr;
-      grid-template-rows:repeat(10,minmax(0,1fr));
-      gap:5px;
-      margin-top:10px;
-      overflow:hidden;
-      flex:1;
-      min-height:0;
-    }
-
-    .levelBtn{
-      min-height:0;
-      border:1px solid var(--line);
-      border-radius:12px;
-      background:rgba(255,255,255,.035);
-      color:var(--text);
-      font-weight:800;
-      cursor:pointer;
-      display:grid;
-      grid-template-columns:38px 1fr;
-      align-items:center;
-      text-align:left;
-      padding:5px 10px;
-    }
-
-    .levelBtn span{
-      font-size:20px;
-      line-height:1;
-      text-align:center;
-    }
-
-    .levelBtn small{
-      color:var(--muted);
-      font-size:10px;
-    }
-
-    .levelBtn.active{
-      background:linear-gradient(135deg,var(--cyan),var(--purple));
-      color:#061019;
-      border-color:transparent;
-      box-shadow:0 0 20px rgba(56,215,255,.3);
-    }
-
-    .levelBtn.active small{
-      color:#07111d;
-    }
-
-    #winnerCard{
-      padding:12px;
-      border:1px solid var(--line);
-      border-radius:14px;
-      background:rgba(255,255,255,.025);
-      margin-top:12px;
-    }
-
-    #winnerCardTitle,
-    #historyTitle{
-      font-size:11px;
-      color:var(--muted);
-      font-weight:800;
-      letter-spacing:.07em;
-      text-transform:uppercase;
-    }
-
-    #currentWinner{
-      margin-top:8px;
-      font-size:18px;
-      font-weight:900;
-    }
-
-    #currentWinnerMeta{
-      margin-top:4px;
-      color:var(--muted);
-      font-size:11px;
-    }
-
-    #historyTitle{
-      margin:13px 0 7px;
-    }
-
-    #historyList{
-      flex:1;
-      min-height:0;
-      overflow:auto;
-      display:grid;
-      align-content:start;
-      gap:5px;
-      padding-right:2px;
-    }
-
-    .historyRow{
-      display:grid;
-      grid-template-columns:24px minmax(0,1fr) 44px;
-      gap:6px;
-      align-items:center;
-      padding:7px;
-      border-radius:9px;
-      background:rgba(255,255,255,.03);
-      font-size:11px;
-      color:var(--muted);
-    }
-
-    .historyPlayers{
-      min-width:0;
-      line-height:1.25;
-    }
-
-    .historyMatchup{
-      display:block;
-      white-space:nowrap;
-      overflow:hidden;
-      text-overflow:ellipsis;
-    }
-
-    .historyDate{
-      display:block;
-      margin-top:2px;
-      color:rgba(255,255,255,.42);
-      font-size:9px;
-      white-space:nowrap;
-    }
-
-    .historyScore{
-      color:var(--text);
-      font-weight:900;
-      text-align:right;
-    }
-
-    .winnerMark{
-      text-decoration:underline;
-      text-underline-offset:2px;
-    }
-
-    .versus{
-      color:var(--muted);
-      margin:0 3px;
-      font-size:9px;
-    }
-
-    .sideLeft{
-      color:var(--cyan) !important;
-      font-weight:900;
-      text-shadow:0 0 10px rgba(56,215,255,.35);
-    }
-
-    .sideRight{
-      color:var(--pink) !important;
-      font-weight:900;
-      text-shadow:0 0 10px rgba(255,91,138,.35);
-    }
-
-    #gamePanel{
-      position:relative;
-      overflow:hidden;
-      background:#000;
-    }
-
-    canvas{
-      width:100%;
-      height:100%;
-      display:block;
-      touch-action:none;
-    }
-
-    #mainOverlay{
-      position:absolute;
-      inset:0;
-      pointer-events:none;
-      display:flex;
-      flex-direction:column;
-      align-items:center;
-    }
-
-    #scoreBar{
-      width:100%;
-      display:flex;
-      justify-content:space-between;
-      align-items:flex-start;
-      padding:20px 30px 0;
-      font-weight:900;
-    }
-
-    .scoreSide{
-      display:flex;
-      align-items:baseline;
-      gap:12px;
-      white-space:nowrap;
-    }
-
-    .scoreSide.rightSide{
-      flex-direction:row-reverse;
-    }
-
-    .scoreNumber{
-      font-size:50px;
-      line-height:1;
-    }
-
-    #scoreLeft{
-      color:var(--cyan);
-      text-shadow:0 0 24px rgba(56,215,255,.5);
-    }
-
-    #scoreRight{
-      color:var(--pink);
-      text-shadow:0 0 24px rgba(255,91,138,.5);
-    }
-
-    .menuPlayerName{
-      font-size:clamp(13px,1.7vw,22px);
-      letter-spacing:.06em;
-      max-width:160px;
-      overflow:hidden;
-      text-overflow:ellipsis;
-    }
-
-    #menuLeftName{
-      color:var(--cyan);
-      text-shadow:0 0 12px rgba(56,215,255,.35);
-    }
-
-    #menuRightName{
-      color:var(--pink);
-      text-shadow:0 0 12px rgba(255,91,138,.35);
-    }
-
-    #app.playing .menuPlayerName{
-      display:none !important;
-    }
-
-    #gameTitle{
-      margin-top:clamp(12px,3vh,36px);
-      text-align:center;
-      line-height:1;
-      text-transform:uppercase;
-    }
-
-    #gameTitle .arcadeMain{
-      font-size:clamp(54px,8vw,108px);
-      font-weight:900;
-      letter-spacing:.16em;
-      padding-left:.16em;
-      text-shadow:
-        0 0 6px rgba(255,255,255,.95),
-        0 0 16px rgba(56,215,255,.85),
-        0 0 34px rgba(56,215,255,.45);
-    }
-
-    .arcadeDuo{
-      font-size:.5em;
-      vertical-align:middle;
-      letter-spacing:.18em;
-      color:#fff;
-    }
-
-    #gameTitle .arcadeRule{
-      width:min(360px,48vw);
-      height:2px;
-      margin:12px auto 10px;
-      background:linear-gradient(90deg,transparent,rgba(255,255,255,.95),transparent);
-      box-shadow:0 0 14px rgba(255,255,255,.45);
-    }
-
-    #gameTitle .arcadeSub{
-      font-size:clamp(18px,2.6vw,34px);
-      font-weight:900;
-      letter-spacing:.28em;
-      padding-left:.28em;
-      color:#fff;
-      text-shadow:0 0 14px rgba(255,91,138,.65);
-    }
-
-    #gameSubtitle{
-      text-align:center;
-      color:rgba(255,255,255,.68);
-      font-size:clamp(12px,1.3vw,17px);
-      line-height:1.45;
-      margin-top:18px;
-      letter-spacing:.05em;
-    }
-
-    .playerHintWrap{
-      width:100%;
-      display:flex;
-      justify-content:space-between;
-      padding:24px 9% 0;
-      margin-top:4px;
-    }
-
-    .playerHint{
-      width:min(240px,35%);
-      padding:15px;
-      border:1px solid var(--line);
-      border-radius:16px;
-      background:rgba(255,255,255,.02);
-      backdrop-filter:blur(4px);
-      text-align:center;
-    }
-
-    .playerHint.left{
-      border-color:rgba(56,215,255,.55);
-    }
-
-    .playerHint.right{
-      border-color:rgba(255,91,138,.55);
-    }
-
-    .playerHint strong{
-      display:block;
-      margin-bottom:7px;
-    }
-
-    .playerHint.left strong{
-      color:var(--cyan);
-    }
-
-    .playerHint.right strong{
-      color:var(--pink);
-    }
-
-    .touchState{
-      display:block;
-      margin-top:7px;
-      font-size:11px;
-      color:var(--muted);
-    }
-
-    .touchState.ready{
-      color:#7dff9a;
-    }
-
-    #countdown{
-      position:absolute;
-      inset:0;
-      z-index:10;
-      display:none;
-      place-items:center;
-      background:rgba(2,4,9,.42);
-      font-size:min(25vw,190px);
-      font-weight:900;
-      text-shadow:0 0 35px rgba(255,255,255,.75);
-      pointer-events:none;
-    }
-
-    #countdown.show{
-      display:grid;
-    }
-
-    #waitingBanner{
-      display:none !important;
-    }
-
-    #bottomControls{
-      position:absolute;
-      left:16px;
-      right:16px;
-      bottom:13px;
-      display:flex;
-      justify-content:center;
-      gap:9px;
-      z-index:50;
-    }
-
-    #bottomControls button{
-      pointer-events:auto;
-      border:1px solid var(--line);
-      border-radius:999px;
-      padding:9px 16px;
-      background:rgba(10,15,27,.84);
-      color:var(--text);
-      font-weight:800;
-      cursor:pointer;
-    }
-
-    #startButton{
-      border-color:rgba(56,215,255,.55) !important;
-      box-shadow:0 0 14px rgba(56,215,255,.12);
-    }
-
-    #resetPlayersButton{
-      color:var(--muted) !important;
-    }
-
-    #version{
-      position:absolute;
-      right:13px;
-      bottom:13px;
-      color:rgba(255,255,255,.35);
-      font-size:10px;
-      z-index:5;
-    }
-
-    #playerEntry{
-      position:absolute;
-      z-index:200;
-      inset:0;
-      display:grid;
-      place-items:center;
-      background:rgba(2,4,9,.88);
-      backdrop-filter:blur(10px);
-      padding:20px;
-    }
-
-    #playerEntry.hidden{
-      display:none;
-    }
-
-    #playerEntryCard{
-      width:min(520px,100%);
-      padding:26px;
-      border:1px solid var(--line);
-      border-radius:20px;
-      background:#0b1120;
-      text-align:center;
-      box-shadow:0 30px 80px rgba(0,0,0,.6);
-    }
-
-    #playerEntryCard h2{
-      margin:0 0 8px;
-      font-size:30px;
-    }
-
-    #playerEntryDescription{
-      color:var(--muted);
-      font-size:13px;
-      line-height:1.45;
-      margin-bottom:20px;
-    }
-
-    .playerInputRow{
-      display:grid;
-      grid-template-columns:1fr 1fr;
-      gap:14px;
-    }
-
-    .playerInputBox{
-      text-align:left;
-    }
-
-    .playerInputBox label{
-      display:block;
-      margin-bottom:7px;
-      font-size:12px;
-      font-weight:900;
-      letter-spacing:.05em;
-    }
-
-    .playerInputBox.leftPlayer label{
-      color:var(--cyan);
-    }
-
-    .playerInputBox.rightPlayer label{
-      color:var(--pink);
-    }
-
-    .playerInputBox input{
-      width:100%;
-      padding:14px 15px;
-      border:1px solid var(--line);
-      border-radius:12px;
-      background:rgba(255,255,255,.05);
-      color:var(--text);
-      user-select:text;
-      text-transform:uppercase;
-      outline:none;
-    }
-
-    .playerInputBox.leftPlayer input:focus{
-      border-color:var(--cyan);
-      box-shadow:0 0 15px rgba(56,215,255,.15);
-    }
-
-    .playerInputBox.rightPlayer input:focus{
-      border-color:var(--pink);
-      box-shadow:0 0 15px rgba(255,91,138,.15);
-    }
-
-    #savePlayersButton{
-      width:100%;
-      margin-top:16px;
-      padding:13px;
-      border:none;
-      border-radius:12px;
-      background:linear-gradient(135deg,var(--cyan),var(--purple));
-      font-weight:900;
-      color:#061019;
-      cursor:pointer;
-    }
-
-    #playerEntryError{
-      min-height:18px;
-      margin-top:10px;
-      color:#ff809f;
-      font-size:12px;
-    }
-
-    #backToMenuButton{
-      display:none;
-      position:absolute;
-      left:50%;
-      bottom:64px;
-      transform:translateX(-50%);
-      z-index:40;
-      min-width:190px;
-      padding:10px 18px;
-      border:1px solid rgba(255,255,255,.35);
-      border-radius:999px;
-      background:rgba(0,0,0,.72);
-      color:#fff;
-      font-weight:900;
-      letter-spacing:.04em;
-      box-shadow:0 0 14px rgba(255,255,255,.12);
-    }
-
-    body,#app,#gamePanel{
-      background:#000 !important;
-    }
-
-    #app.playing{
-      padding:0 !important;
-    }
-
-    #app.playing #layout{
-      display:block !important;
-      width:100% !important;
-      height:100% !important;
-    }
-
-    #app.playing #levelsColumn,
-    #app.playing #scoresColumn{
-      display:none !important;
-    }
-
-    #app.playing #gamePanel{
-      position:fixed !important;
-      inset:0 !important;
-      width:100vw !important;
-      height:100dvh !important;
-      border:0 !important;
-      border-radius:0 !important;
-      z-index:100 !important;
-      background:#000 !important;
-    }
-
-    #app.playing #bottomControls,
-    #app.playing #version{
-      display:none !important;
-    }
-
-    #app.playing #gameTitle,
-    #app.playing #gameSubtitle{
-      display:none !important;
-    }
-
-    #app.playing.waiting-state #mainOverlay{
-      display:flex !important;
-      opacity:1 !important;
-    }
-
-    #app.playing.waiting-state #backToMenuButton{
-      display:block !important;
-    }
-
-    #app.playing.countdown-state #mainOverlay{
-      display:flex !important;
-      opacity:0 !important;
-      transition:opacity .6s ease;
-    }
-
-    #app.playing.countdown-state #backToMenuButton{
-      display:none !important;
-    }
-
-    #app.playing.rally-state #mainOverlay{
-      display:none !important;
-    }
-
-    #app.playing.rally-state #waitingBanner,
-    #app.playing.rally-state #backToMenuButton{
-      display:none !important;
-    }
-
-    #rotateNotice{
-      display:none;
-      position:fixed;
-      z-index:9999;
-      inset:0;
-      background:#000 !important;
-      place-items:center;
-      text-align:center;
-      padding:28px;
-      color:#fff !important;
-      font-size:clamp(22px,6vw,38px);
-      font-weight:900;
-      letter-spacing:.04em;
-    }
-
-    @media (orientation:portrait) and (max-width:900px){
-      #rotateNotice{display:grid}
-    }
-
-    @media (max-width:1050px){
-      #layout{grid-template-columns:145px 245px minmax(390px,1fr);gap:7px}
-      .column{padding:9px}
-      .levelBtn{min-height:39px}
-      .historyRow{padding:5px}
-    }
-
-    @media (max-height:610px){
-      #levelGrid{gap:3px;margin-top:6px}
-      .levelBtn{min-height:0;padding:2px 7px}
-      .levelBtn span{font-size:15px}
-      .levelBtn small{font-size:8px}
-      #winnerCard{margin-top:7px;padding:7px}
-      #historyTitle{margin:7px 0 4px}
-      .historyRow{padding:4px 5px}
-      #scoreBar{padding-top:9px}
-      .scoreNumber{font-size:36px}
-      .playerHint{padding:8px;font-size:11px}
-      #gameTitle .arcadeMain{font-size:48px}
-      #gameTitle{margin-top:5px}
-    }
-
-    @media (max-width:650px){
-      .playerInputRow{grid-template-columns:1fr}
-    }
+    :root{--bg:#05070d;--panel:#0b1120;--line:rgba(255,255,255,.13);--text:#f5f7ff;--muted:#9ca8bf;--cyan:#38d7ff;--pink:#ff5b8a;--purple:#8a5cff}
+    *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none}
+    html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#03050a;color:var(--text);font-family:Arial,Helvetica,sans-serif;touch-action:none}
+    body{position:fixed;inset:0}
+    button,input{font:inherit}
+    #app{width:100%;height:100%;padding:max(8px,env(safe-area-inset-top)) max(8px,env(safe-area-inset-right)) max(8px,env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left));background:radial-gradient(circle at 25% 30%,rgba(0,180,255,.08),transparent 30%),radial-gradient(circle at 80% 35%,rgba(255,0,100,.08),transparent 30%),linear-gradient(180deg,#05070d,#020307)}
+    #layout{width:100%;height:100%;display:grid;grid-template-columns:170px 300px minmax(420px,1fr);gap:10px}
+    .panel{border:1px solid var(--line);border-radius:20px;background:linear-gradient(180deg,rgba(12,18,32,.96),rgba(7,11,20,.96));box-shadow:0 24px 70px rgba(0,0,0,.45);overflow:hidden}
+    .column{padding:14px;display:flex;flex-direction:column;min-height:0}
+    .title-small{text-align:center;font-weight:900;font-size:19px;letter-spacing:.04em}
+    .subtitle-small{text-align:center;color:var(--muted);font-size:11px;margin-top:4px;line-height:1.35}
+    #levelGrid{display:grid;grid-template-columns:1fr;grid-template-rows:repeat(10,minmax(0,1fr));gap:5px;margin-top:10px;overflow:hidden;flex:1;min-height:0}
+    .levelBtn{min-height:0;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.035);color:var(--text);font-weight:800;cursor:pointer;display:grid;grid-template-columns:38px 1fr;align-items:center;text-align:left;padding:5px 10px}
+    .levelBtn span{font-size:20px;line-height:1;text-align:center}
+    .levelBtn small{color:var(--muted);font-size:10px}
+    .levelBtn.active{background:linear-gradient(135deg,var(--cyan),var(--purple));color:#061019;border-color:transparent;box-shadow:0 0 20px rgba(56,215,255,.3)}
+    .levelBtn.active small{color:#07111d}
+    #winnerCard{padding:12px;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.025);margin-top:12px}
+    #winnerCardTitle,#historyTitle{font-size:11px;color:var(--muted);font-weight:800;letter-spacing:.07em;text-transform:uppercase}
+    #currentWinner{margin-top:8px;font-size:18px;font-weight:900}
+    #currentWinnerMeta{margin-top:4px;color:var(--muted);font-size:11px;line-height:1.45}
+    #historyTitle{margin:13px 0 7px}
+    #historyList{flex:1;min-height:0;overflow:auto;display:grid;align-content:start;gap:5px;padding-right:2px}
+    .historyRow{display:grid;grid-template-columns:24px minmax(0,1fr) 54px;gap:6px;align-items:center;padding:7px;border-radius:9px;background:rgba(255,255,255,.03);font-size:11px;color:var(--muted)}
+    .historyPlayers{min-width:0;line-height:1.25}
+    .historyMatchup{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .historyDate{display:block;margin-top:2px;color:rgba(255,255,255,.42);font-size:9px;white-space:nowrap}
+    .historyScore{color:var(--text);font-weight:900;text-align:right;white-space:nowrap}
+    .winnerMark{text-decoration:underline;text-underline-offset:2px}
+    .versus{color:var(--muted);margin:0 3px;font-size:9px}
+    .sideLeft{color:var(--cyan)!important;font-weight:900;text-shadow:0 0 10px rgba(56,215,255,.35)}
+    .sideRight{color:var(--pink)!important;font-weight:900;text-shadow:0 0 10px rgba(255,91,138,.35)}
+    #gamePanel{position:relative;overflow:hidden;background:#000}
+    canvas{width:100%;height:100%;display:block;touch-action:none}
+    #mainOverlay{position:absolute;inset:0;pointer-events:none;display:flex;flex-direction:column;align-items:center}
+    #scoreBar{width:100%;display:flex;justify-content:space-between;align-items:flex-start;padding:20px 30px 0;font-weight:900}
+    .scoreSide{display:flex;align-items:baseline;gap:12px;white-space:nowrap}
+    .scoreSide.rightSide{flex-direction:row-reverse}
+    .scoreNumber{font-size:50px;line-height:1}
+    #scoreLeft{color:var(--cyan);text-shadow:0 0 24px rgba(56,215,255,.5)}
+    #scoreRight{color:var(--pink);text-shadow:0 0 24px rgba(255,91,138,.5)}
+    .menuPlayerName{font-size:clamp(13px,1.7vw,22px);letter-spacing:.06em;max-width:160px;overflow:hidden;text-overflow:ellipsis}
+    #menuLeftName{color:var(--cyan);text-shadow:0 0 12px rgba(56,215,255,.35)}
+    #menuRightName{color:var(--pink);text-shadow:0 0 12px rgba(255,91,138,.35)}
+    #app.playing .menuPlayerName{display:none!important}
+    #gameTitle{margin-top:clamp(12px,3vh,36px);text-align:center;line-height:1;text-transform:uppercase}
+    #gameTitle .arcadeMain{font-size:clamp(54px,8vw,108px);font-weight:900;letter-spacing:.16em;padding-left:.16em;text-shadow:0 0 6px rgba(255,255,255,.95),0 0 16px rgba(56,215,255,.85),0 0 34px rgba(56,215,255,.45)}
+    .arcadeDuo{font-size:.5em;vertical-align:middle;letter-spacing:.18em;color:#fff}
+    #gameTitle .arcadeRule{width:min(360px,48vw);height:2px;margin:12px auto 10px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.95),transparent);box-shadow:0 0 14px rgba(255,255,255,.45)}
+    #gameTitle .arcadeSub{font-size:clamp(18px,2.6vw,34px);font-weight:900;letter-spacing:.28em;padding-left:.28em;color:#fff;text-shadow:0 0 14px rgba(255,91,138,.65)}
+    #gameSubtitle{text-align:center;color:rgba(255,255,255,.68);font-size:clamp(12px,1.3vw,17px);line-height:1.45;margin-top:18px;letter-spacing:.05em}
+    .playerHintWrap{width:100%;display:flex;justify-content:space-between;padding:24px 9% 0;margin-top:4px}
+    .playerHint{width:min(240px,35%);padding:15px;border:1px solid var(--line);border-radius:16px;background:rgba(255,255,255,.02);backdrop-filter:blur(4px);text-align:center}
+    .playerHint.left{border-color:rgba(56,215,255,.55)}
+    .playerHint.right{border-color:rgba(255,91,138,.55)}
+    .playerHint strong{display:block;margin-bottom:7px}
+    .playerHint.left strong{color:var(--cyan)}
+    .playerHint.right strong{color:var(--pink)}
+    .touchState{display:block;margin-top:7px;font-size:11px;color:var(--muted)}
+    .touchState.ready{color:#7dff9a}
+    #countdown{position:absolute;inset:0;z-index:10;display:none;place-items:center;background:rgba(2,4,9,.42);font-size:min(25vw,190px);font-weight:900;text-shadow:0 0 35px rgba(255,255,255,.75);pointer-events:none}
+    #countdown.show{display:grid}
+    #waitingBanner{display:none!important}
+    #bottomControls{position:absolute;left:16px;right:16px;bottom:13px;display:flex;justify-content:center;gap:9px;z-index:50}
+    #bottomControls button{pointer-events:auto;border:1px solid var(--line);border-radius:999px;padding:9px 16px;background:rgba(10,15,27,.84);color:var(--text);font-weight:800;cursor:pointer}
+    #startButton{border-color:rgba(56,215,255,.55)!important;box-shadow:0 0 14px rgba(56,215,255,.12)}
+    #resetPlayersButton{color:var(--muted)!important}
+    #version{position:absolute;right:13px;bottom:13px;color:rgba(255,255,255,.35);font-size:10px;z-index:5}
+    #playerEntry{position:absolute;z-index:200;inset:0;display:grid;place-items:center;background:rgba(2,4,9,.88);backdrop-filter:blur(10px);padding:20px}
+    #playerEntry.hidden{display:none}
+    #playerEntryCard{width:min(520px,100%);padding:26px;border:1px solid var(--line);border-radius:20px;background:#0b1120;text-align:center;box-shadow:0 30px 80px rgba(0,0,0,.6)}
+    #playerEntryCard h2{margin:0 0 8px;font-size:30px}
+    #playerEntryDescription{color:var(--muted);font-size:13px;line-height:1.45;margin-bottom:20px}
+    .playerInputRow{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    .playerInputBox{text-align:left}
+    .playerInputBox label{display:block;margin-bottom:7px;font-size:12px;font-weight:900;letter-spacing:.05em}
+    .playerInputBox.leftPlayer label{color:var(--cyan)}
+    .playerInputBox.rightPlayer label{color:var(--pink)}
+    .playerInputBox input{width:100%;padding:14px 15px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.05);color:var(--text);user-select:text;text-transform:uppercase;outline:none}
+    .playerInputBox.leftPlayer input:focus{border-color:var(--cyan);box-shadow:0 0 15px rgba(56,215,255,.15)}
+    .playerInputBox.rightPlayer input:focus{border-color:var(--pink);box-shadow:0 0 15px rgba(255,91,138,.15)}
+    #savePlayersButton{width:100%;margin-top:16px;padding:13px;border:none;border-radius:12px;background:linear-gradient(135deg,var(--cyan),var(--purple));font-weight:900;color:#061019;cursor:pointer}
+    #playerEntryError{min-height:18px;margin-top:10px;color:#ff809f;font-size:12px}
+    #backToMenuButton{display:none;position:absolute;left:50%;bottom:64px;transform:translateX(-50%);z-index:40;min-width:190px;padding:10px 18px;border:1px solid rgba(255,255,255,.35);border-radius:999px;background:rgba(0,0,0,.72);color:#fff;font-weight:900;letter-spacing:.04em;box-shadow:0 0 14px rgba(255,255,255,.12)}
+    body,#app,#gamePanel{background:#000!important}
+    #app.playing{padding:0!important}
+    #app.playing #layout{display:block!important;width:100%!important;height:100%!important}
+    #app.playing #levelsColumn,#app.playing #scoresColumn{display:none!important}
+    #app.playing #gamePanel{position:fixed!important;inset:0!important;width:100vw!important;height:100dvh!important;border:0!important;border-radius:0!important;z-index:100!important;background:#000!important}
+    #app.playing #bottomControls,#app.playing #version{display:none!important}
+    #app.playing #gameTitle,#app.playing #gameSubtitle{display:none!important}
+    #app.playing.waiting-state #mainOverlay{display:flex!important;opacity:1!important}
+    #app.playing.waiting-state #backToMenuButton{display:block!important}
+    #app.playing.countdown-state #mainOverlay{display:flex!important;opacity:0!important;transition:opacity .6s ease}
+    #app.playing.countdown-state #backToMenuButton{display:none!important}
+    #app.playing.rally-state #mainOverlay{display:none!important}
+    #app.playing.rally-state #waitingBanner,#app.playing.rally-state #backToMenuButton{display:none!important}
+    #rotateNotice{display:none;position:fixed;z-index:9999;inset:0;background:#000!important;place-items:center;text-align:center;padding:28px;color:#fff!important;font-size:clamp(22px,6vw,38px);font-weight:900;letter-spacing:.04em}
+    @media (orientation:portrait) and (max-width:900px){#rotateNotice{display:grid}}
+    @media (max-width:1050px){#layout{grid-template-columns:145px 245px minmax(390px,1fr);gap:7px}.column{padding:9px}.levelBtn{min-height:39px}.historyRow{padding:5px}}
+    @media (max-height:610px){#levelGrid{gap:3px;margin-top:6px}.levelBtn{min-height:0;padding:2px 7px}.levelBtn span{font-size:15px}.levelBtn small{font-size:8px}#winnerCard{margin-top:7px;padding:7px}#historyTitle{margin:7px 0 4px}.historyRow{padding:4px 5px}#scoreBar{padding-top:9px}.scoreNumber{font-size:36px}.playerHint{padding:8px;font-size:11px}#gameTitle .arcadeMain{font-size:48px}#gameTitle{margin-top:5px}}
+    @media (max-width:650px){.playerInputRow{grid-template-columns:1fr}}
   </style>
 </head>
-
 <body>
 <main id="app">
   <div id="layout">
-
     <aside id="levelsColumn" class="panel column">
       <div class="title-small">SPEED LEVEL</div>
       <div class="subtitle-small"></div>
       <div id="levelGrid"></div>
     </aside>
-
     <aside id="scoresColumn" class="panel column">
       <div class="title-small">HIGHSCORERS</div>
-      <div class="subtitle-small"></div>
-
+      <div class="subtitle-small">Fewest bounces ranks highest</div>
       <section id="winnerCard">
-        <div id="winnerCardTitle">Current winner · Level 5</div>
+        <div id="winnerCardTitle">Best result · Level 5</div>
         <div id="currentWinner">No winner yet</div>
         <div id="currentWinnerMeta">Play the first match</div>
       </section>
-
-      <div id="historyTitle">Last 25 winners · Level 5</div>
+      <div id="historyTitle">Top 25 · Level 5</div>
       <div id="historyList"></div>
     </aside>
-
     <section id="gamePanel" class="panel">
-
       <canvas id="gameCanvas"></canvas>
-
       <div id="mainOverlay">
-
         <div id="scoreBar">
-          <div class="scoreSide leftSide">
-            <span id="scoreLeft" class="scoreNumber">0</span>
-            <span id="menuLeftName" class="menuPlayerName"></span>
-          </div>
-
-          <div class="scoreSide rightSide">
-            <span id="scoreRight" class="scoreNumber">0</span>
-            <span id="menuRightName" class="menuPlayerName"></span>
-          </div>
+          <div class="scoreSide leftSide"><span id="scoreLeft" class="scoreNumber">0</span><span id="menuLeftName" class="menuPlayerName"></span></div>
+          <div class="scoreSide rightSide"><span id="scoreRight" class="scoreNumber">0</span><span id="menuRightName" class="menuPlayerName"></span></div>
         </div>
-
         <div id="gameTitle">
           <div class="arcadeMain">PONG <span class="arcadeDuo">DUO</span></div>
           <div class="arcadeRule"></div>
           <div class="arcadeSub">RACE TO 3</div>
         </div>
-
-        <div id="gameSubtitle">
-          First to 3 points wins.<br>
-          Both players must touch the screen to start.
-        </div>
-
+        <div id="gameSubtitle">First to 3 points wins.<br>Both players must touch the screen to start.</div>
         <div class="playerHintWrap">
-          <div class="playerHint left">
-            <strong id="leftPlayerHintTitle">LEFT PLAYER</strong>
-            Touch and hold the left half.
-            <span id="leftTouchState" class="touchState">Waiting for finger</span>
-          </div>
-
-          <div class="playerHint right">
-            <strong id="rightPlayerHintTitle">RIGHT PLAYER</strong>
-            Touch and hold the right half.
-            <span id="rightTouchState" class="touchState">Waiting for finger</span>
-          </div>
+          <div class="playerHint left"><strong id="leftPlayerHintTitle">LEFT PLAYER</strong>Touch and hold the left half.<span id="leftTouchState" class="touchState">Waiting for finger</span></div>
+          <div class="playerHint right"><strong id="rightPlayerHintTitle">RIGHT PLAYER</strong>Touch and hold the right half.<span id="rightTouchState" class="touchState">Waiting for finger</span></div>
         </div>
-
       </div>
-
       <div id="countdown">3</div>
       <div id="waitingBanner"></div>
-
-      <div id="bottomControls">
-        <button id="startButton" type="button">Start</button>
-        <button id="resetPlayersButton" type="button">Reset Players</button>
-      </div>
-
+      <div id="bottomControls"><button id="startButton" type="button">Start</button><button id="resetPlayersButton" type="button">Reset Players</button></div>
       <div id="playerEntry" class="hidden">
         <div id="playerEntryCard">
-
           <h2>Enter Players</h2>
-
-          <div id="playerEntryDescription">
-            Enter a name or initials for both players.<br>
-            Maximum 10 characters.
-          </div>
-
+          <div id="playerEntryDescription">Enter a name or initials for both players.<br>Maximum 10 characters.</div>
           <div class="playerInputRow">
-
-            <div class="playerInputBox leftPlayer">
-              <label for="leftPlayerInput">LEFT PLAYER</label>
-              <input
-                id="leftPlayerInput"
-                maxlength="10"
-                autocomplete="off"
-                autocapitalize="characters"
-                spellcheck="false"
-                placeholder="LEFT"
-              >
-            </div>
-
-            <div class="playerInputBox rightPlayer">
-              <label for="rightPlayerInput">RIGHT PLAYER</label>
-              <input
-                id="rightPlayerInput"
-                maxlength="10"
-                autocomplete="off"
-                autocapitalize="characters"
-                spellcheck="false"
-                placeholder="RIGHT"
-              >
-            </div>
-
+            <div class="playerInputBox leftPlayer"><label for="leftPlayerInput">LEFT PLAYER</label><input id="leftPlayerInput" maxlength="10" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="LEFT"></div>
+            <div class="playerInputBox rightPlayer"><label for="rightPlayerInput">RIGHT PLAYER</label><input id="rightPlayerInput" maxlength="10" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="RIGHT"></div>
           </div>
-
           <button id="savePlayersButton" type="button">Save Players & Start</button>
           <div id="playerEntryError"></div>
-
         </div>
       </div>
-
       <button id="backToMenuButton" type="button">Back to Main Menu</button>
       <div id="version"></div>
-
-      <div id="rotateNotice">
-        <div>Hold your phone horizontally</div>
-      </div>
-
+      <div id="rotateNotice"><div>Hold your phone horizontally</div></div>
     </section>
   </div>
 </main>
-
 <script>
 "use strict";
 
@@ -868,37 +186,27 @@
    Change the values below for fast adjustments.
 ========================================================= */
 
-/* VERSION */
-const PONG_DUO_VERSION = "2.0.12";
-
 /* GAME SETTINGS */
 const WINNING_SCORE = 3;
 const DEFAULT_LEVEL = 5;
 const MAX_PLAYER_NAME_LENGTH = 10;
 
 const BASE_START_BALL_SPEED = 520;
-const BASE_MAX_BALL_SPEED = 1050;
-const BASE_SPEED_INCREASE = 1.055;
+const BASE_MAX_BALL_SPEED = 3000;
+const BASE_SPEED_INCREASE = 1.075;
+const MAX_PHYSICS_STEP_PX = 8;
 
 const COUNTDOWN_STEP_MS = 700;
 
-const LEVEL_SPEED_MULTIPLIERS = [
-  0.8, 1.00, 1.20, 1.40, 1.60,
-  1.80, 1.90, 2.00, 2.10, 2.50
-];
+/* SOUND SETTINGS */
+const SOUND_ENABLED = true;
+const SOUND_VOLUME = 0.045;
+const WALL_SOUND_FREQUENCY = 320;
+const PADDLE_SOUND_FREQUENCY = 520;
+const SOUND_DURATION_MS = 32;
 
-const LEVEL_NAMES = [
-  "Very Slow",
-  "Slow",
-  "Slower",
-  "Slightly Slow",
-  "Normal",
-  "Slightly Fast",
-  "Fast",
-  "Very Fast",
-  "Extreme",
-  "Insane"
-];
+const LEVEL_SPEED_MULTIPLIERS = [0.8,1.00,1.20,1.40,1.60,1.80,1.90,2.00,2.10,2.50];
+const LEVEL_NAMES = ["Very Slow","Slow","Slower","Slightly Slow","Normal","Slightly Fast","Fast","Very Fast","Extreme","Insane"];
 
 /* DATABASE SETTINGS */
 const SUPABASE_URL = "https://wubibqwcctvrnyiyuobt.supabase.co";
@@ -914,1083 +222,129 @@ const HISTORY_STORAGE_KEY = "pongDuelWinnerHistory";
    END QUICK SETTINGS
 ========================================================= */
 
-const app = document.getElementById("app");
-const canvas = document.getElementById("gameCanvas");
-const ctx = canvas.getContext("2d");
-const gamePanel = document.getElementById("gamePanel");
+const app=document.getElementById("app");
+const canvas=document.getElementById("gameCanvas");
+const ctx=canvas.getContext("2d");
+const gamePanel=document.getElementById("gamePanel");
+const startButton=document.getElementById("startButton");
+const resetPlayersButton=document.getElementById("resetPlayersButton");
+const backToMenuButton=document.getElementById("backToMenuButton");
+const levelGrid=document.getElementById("levelGrid");
+const scoreLeftEl=document.getElementById("scoreLeft");
+const scoreRightEl=document.getElementById("scoreRight");
+const menuLeftName=document.getElementById("menuLeftName");
+const menuRightName=document.getElementById("menuRightName");
+const winnerCardTitle=document.getElementById("winnerCardTitle");
+const currentWinner=document.getElementById("currentWinner");
+const currentWinnerMeta=document.getElementById("currentWinnerMeta");
+const historyTitle=document.getElementById("historyTitle");
+const historyList=document.getElementById("historyList");
+const countdownEl=document.getElementById("countdown");
+const waitingBanner=document.getElementById("waitingBanner");
+const leftTouchState=document.getElementById("leftTouchState");
+const rightTouchState=document.getElementById("rightTouchState");
+const leftPlayerHintTitle=document.getElementById("leftPlayerHintTitle");
+const rightPlayerHintTitle=document.getElementById("rightPlayerHintTitle");
+const playerEntry=document.getElementById("playerEntry");
+const leftPlayerInput=document.getElementById("leftPlayerInput");
+const rightPlayerInput=document.getElementById("rightPlayerInput");
+const savePlayersButton=document.getElementById("savePlayersButton");
+const playerEntryError=document.getElementById("playerEntryError");
+const versionEl=document.getElementById("version");
+versionEl.textContent="v"+PONG_DUO_VERSION;
+leftPlayerInput.maxLength=MAX_PLAYER_NAME_LENGTH;
+rightPlayerInput.maxLength=MAX_PLAYER_NAME_LENGTH;
 
-const startButton = document.getElementById("startButton");
-const resetPlayersButton = document.getElementById("resetPlayersButton");
-const backToMenuButton = document.getElementById("backToMenuButton");
-
-const levelGrid = document.getElementById("levelGrid");
-
-const scoreLeftEl = document.getElementById("scoreLeft");
-const scoreRightEl = document.getElementById("scoreRight");
-const menuLeftName = document.getElementById("menuLeftName");
-const menuRightName = document.getElementById("menuRightName");
-
-const winnerCardTitle = document.getElementById("winnerCardTitle");
-const currentWinner = document.getElementById("currentWinner");
-const currentWinnerMeta = document.getElementById("currentWinnerMeta");
-const historyTitle = document.getElementById("historyTitle");
-const historyList = document.getElementById("historyList");
-
-const countdownEl = document.getElementById("countdown");
-const waitingBanner = document.getElementById("waitingBanner");
-const leftTouchState = document.getElementById("leftTouchState");
-const rightTouchState = document.getElementById("rightTouchState");
-const leftPlayerHintTitle = document.getElementById("leftPlayerHintTitle");
-const rightPlayerHintTitle = document.getElementById("rightPlayerHintTitle");
-
-const playerEntry = document.getElementById("playerEntry");
-const leftPlayerInput = document.getElementById("leftPlayerInput");
-const rightPlayerInput = document.getElementById("rightPlayerInput");
-const savePlayersButton = document.getElementById("savePlayersButton");
-const playerEntryError = document.getElementById("playerEntryError");
-
-const versionEl = document.getElementById("version");
-versionEl.textContent = "v" + PONG_DUO_VERSION;
-
-leftPlayerInput.maxLength = MAX_PLAYER_NAME_LENGTH;
-rightPlayerInput.maxLength = MAX_PLAYER_NAME_LENGTH;
-
-let playerNames = loadPlayers();
-let selectedLevel = loadSelectedLevel();
-
-let width=0;
-let height=0;
-let dpr=1;
-
-let running=false;
-let paused=false;
-let gameOver=false;
-let serving=false;
-let lastTime=0;
-
-let waitingForPlayers=true;
-let countdownActive=false;
-let countdownTimer=null;
-let countdownIndex=0;
-
+let playerNames=loadPlayers();
+let selectedLevel=loadSelectedLevel();
+let width=0,height=0,dpr=1;
+let running=false,paused=false,gameOver=false,serving=false,lastTime=0;
+let waitingForPlayers=true,countdownActive=false,countdownTimer=null,countdownIndex=0;
 let rallyDirection=1;
-
+let bounceCount=0;
+let audioContext=null;
 let currentStartSpeed=getStartSpeed(selectedLevel);
 let currentMaxSpeed=getMaxSpeed(selectedLevel);
 let currentIncrease=getIncrease(selectedLevel);
-
 const score={left:0,right:0};
-
 const left={x:0,y:0,width:0,height:0};
 const right={x:0,y:0,width:0,height:0};
-
-const ball={
-  x:0,
-  y:0,
-  radius:0,
-  vx:0,
-  vy:0,
-  speed:currentStartSpeed
-};
-
+const ball={x:0,y:0,radius:0,vx:0,vy:0,speed:currentStartSpeed};
 const pointers=new Map();
 
-async function enterFullscreen(){
-  const el=document.documentElement;
-
-  try{
-    if(document.fullscreenElement||document.webkitFullscreenElement)return;
-
-    if(el.requestFullscreen){
-      await el.requestFullscreen();
-    }else if(el.webkitRequestFullscreen){
-      el.webkitRequestFullscreen();
-    }
-  }catch(err){
-    console.log("Fullscreen not available:",err);
-  }
-}
-
-async function exitFullscreen(){
-  try{
-    if(document.fullscreenElement&&document.exitFullscreen){
-      await document.exitFullscreen();
-    }else if(document.webkitFullscreenElement&&document.webkitExitFullscreen){
-      document.webkitExitFullscreen();
-    }
-  }catch(err){
-    console.log("Could not exit fullscreen:",err);
-  }
-}
-
-function loadPlayers(){
-  try{
-    const stored=JSON.parse(localStorage.getItem(PLAYER_STORAGE_KEY)||"null");
-
-    if(
-      stored &&
-      typeof stored.left==="string" &&
-      typeof stored.right==="string" &&
-      stored.left.trim() &&
-      stored.right.trim()
-    ){
-      return{
-        left:stored.left.trim().slice(0,MAX_PLAYER_NAME_LENGTH),
-        right:stored.right.trim().slice(0,MAX_PLAYER_NAME_LENGTH)
-      };
-    }
-  }catch(err){
-    console.warn("Could not load players:",err);
-  }
-
-  return{left:"",right:""};
-}
-
-function savePlayers(){
-  localStorage.setItem(PLAYER_STORAGE_KEY,JSON.stringify(playerNames));
-}
-
-function playersAreSet(){
-  return Boolean(playerNames.left&&playerNames.right);
-}
-
-function updatePlayerDisplay(){
-  menuLeftName.textContent=playerNames.left||"";
-  menuRightName.textContent=playerNames.right||"";
-
-  leftPlayerHintTitle.textContent=
-    playerNames.left
-      ? "LEFT PLAYER · "+playerNames.left
-      : "LEFT PLAYER";
-
-  rightPlayerHintTitle.textContent=
-    playerNames.right
-      ? "RIGHT PLAYER · "+playerNames.right
-      : "RIGHT PLAYER";
-}
-
-function openPlayerEntry(){
-  playerEntryError.textContent="";
-  leftPlayerInput.value=playerNames.left||"";
-  rightPlayerInput.value=playerNames.right||"";
-  playerEntry.classList.remove("hidden");
-  setTimeout(()=>leftPlayerInput.focus(),50);
-}
-
-function closePlayerEntry(){
-  playerEntry.classList.add("hidden");
-}
-
-async function saveEnteredPlayersAndStart(){
-  const leftName=leftPlayerInput.value
-    .trim()
-    .slice(0,MAX_PLAYER_NAME_LENGTH)
-    .toUpperCase();
-
-  const rightName=rightPlayerInput.value
-    .trim()
-    .slice(0,MAX_PLAYER_NAME_LENGTH)
-    .toUpperCase();
-
-  if(!leftName){
-    playerEntryError.textContent="Enter a name for the Left Player.";
-    leftPlayerInput.focus();
-    return;
-  }
-
-  if(!rightName){
-    playerEntryError.textContent="Enter a name for the Right Player.";
-    rightPlayerInput.focus();
-    return;
-  }
-
-  playerNames={left:leftName,right:rightName};
-
-  savePlayers();
-  updatePlayerDisplay();
-  closePlayerEntry();
-
-  await enterFullscreen();
-  prepareGame();
-}
-
-function resetPlayers(){
-  playerNames={left:"",right:""};
-  localStorage.removeItem(PLAYER_STORAGE_KEY);
-  updatePlayerDisplay();
-}
-
-function setGameState(state){
-  app.classList.remove(
-    "waiting-state",
-    "countdown-state",
-    "rally-state",
-    "rally-active",
-    "playMode"
-  );
-
-  if(state==="menu"){
-    app.classList.remove("playing");
-    return;
-  }
-
-  app.classList.add("playing");
-
-  if(state==="waiting")app.classList.add("waiting-state");
-  if(state==="countdown")app.classList.add("countdown-state");
-  if(state==="rally")app.classList.add("rally-state");
-}
-
-function getStartSpeed(level){
-  return BASE_START_BALL_SPEED*LEVEL_SPEED_MULTIPLIERS[level-1];
-}
-
-function getMaxSpeed(level){
-  return BASE_MAX_BALL_SPEED*LEVEL_SPEED_MULTIPLIERS[level-1];
-}
-
-function getIncrease(level){
-  return BASE_SPEED_INCREASE+(level-DEFAULT_LEVEL)*.0025;
-}
-
-function clamp(v,min,max){
-  return Math.max(min,Math.min(max,v));
-}
-
-function loadSelectedLevel(){
-  const n=Number(localStorage.getItem(LEVEL_STORAGE_KEY));
-  return Number.isInteger(n)&&n>=1&&n<=10?n:DEFAULT_LEVEL;
-}
-
-function applyLevel(){
-  if(running||countdownActive)return;
-
-  currentStartSpeed=getStartSpeed(selectedLevel);
-  currentMaxSpeed=getMaxSpeed(selectedLevel);
-  currentIncrease=getIncrease(selectedLevel);
-
-  ball.speed=currentStartSpeed;
-
-  localStorage.setItem(LEVEL_STORAGE_KEY,String(selectedLevel));
-
-  renderLevels();
-  renderWinnerData();
-}
-
-function renderLevels(){
-  levelGrid.innerHTML="";
-
-  for(let level=1;level<=10;level++){
-    const button=document.createElement("button");
-
-    button.className="levelBtn"+(level===selectedLevel?" active":"");
-
-    button.innerHTML=
-      "<span>"+level+"</span>"+
-      "<small>"+LEVEL_NAMES[level-1]+"</small>";
-
-    button.onclick=()=>{
-      if(!running&&!countdownActive){
-        selectedLevel=level;
-        applyLevel();
-      }
-    };
-
-    levelGrid.appendChild(button);
-  }
-}
-
-function loadLocalHistory(){
-  try{
-    const data=JSON.parse(localStorage.getItem(HISTORY_STORAGE_KEY)||"[]");
-    return Array.isArray(data)?data:[];
-  }catch{
-    return[];
-  }
-}
-
-function saveLocalHistory(entry){
-  const history=loadLocalHistory();
-  history.unshift(entry);
-
-  localStorage.setItem(
-    HISTORY_STORAGE_KEY,
-    JSON.stringify(history.slice(0,250))
-  );
-}
-
-function normalizeOnlineWinner(w){
-  return{
-    name:w.player_name,
-    leftPlayer:w.left_player || (w.side==="Left" ? w.player_name : ""),
-    rightPlayer:w.right_player || (w.side==="Right" ? w.player_name : ""),
-    level:Number(w.level),
-    side:w.side,
-    winnerScore:Number(w.winner_score),
-    loserScore:Number(w.loser_score),
-    timestamp:w.created_at
-  };
-}
-
-function supabaseHeaders(extra={}){
-  return{
-    "apikey":SUPABASE_PUBLISHABLE_KEY,
-    "Authorization":"Bearer "+SUPABASE_PUBLISHABLE_KEY,
-    "Content-Type":"application/json",
-    ...extra
-  };
-}
-
-async function fetchOnlineHistory(level){
-  const url=
-    SUPABASE_URL+
-    "/rest/v1/"+
-    PONG_HIGHSCORE_TABLE+
-    "?select=player_name,left_player,right_player,level,side,winner_score,loser_score,created_at"+
-    "&level=eq."+encodeURIComponent(level)+
-    "&order=created_at.desc"+
-    "&limit=25";
-
-  const response=await fetch(url,{headers:supabaseHeaders()});
-
-  if(!response.ok){
-    throw new Error("Highscore load failed: "+response.status);
-  }
-
-  return(await response.json()).map(normalizeOnlineWinner);
-}
-
-async function saveOnlineWinner(entry){
-  const payload={
-    player_name:entry.name,
-    left_player:entry.leftPlayer,
-    right_player:entry.rightPlayer,
-    level:Number(entry.level),
-    side:entry.side,
-    winner_score:Number(entry.winnerScore),
-    loser_score:Number(entry.loserScore)
-  };
-
-  const response=await fetch(
-    SUPABASE_URL+"/rest/v1/"+PONG_HIGHSCORE_TABLE,
-    {
-      method:"POST",
-      headers:supabaseHeaders({"Prefer":"return=minimal"}),
-      body:JSON.stringify(payload)
-    }
-  );
-
-  if(!response.ok){
-    throw new Error(
-      "Highscore save failed: "+
-      response.status+
-      " "+
-      await response.text()
-    );
-  }
-}
-
-async function renderWinnerData(){
-  const requestedLevel=selectedLevel;
-
-  winnerCardTitle.textContent="Current winner · Level "+requestedLevel;
-  historyTitle.textContent="Last 25 winners · Level "+requestedLevel;
-
-  currentWinner.textContent="Loading...";
-  currentWinnerMeta.textContent="Online highscores";
-  historyList.innerHTML="";
-
-  let history=[];
-
-  try{
-    history=await fetchOnlineHistory(requestedLevel);
-  }catch(err){
-    console.warn(err);
-
-    history=loadLocalHistory()
-      .filter(x=>Number(x.level)===requestedLevel)
-      .slice(0,25);
-  }
-
-  if(requestedLevel!==selectedLevel)return;
-
-  if(history.length){
-    const winner=history[0];
-
-    currentWinner.textContent=winner.name;
-
-    const leftName=winner.leftPlayer || "—";
-    const rightName=winner.rightPlayer || "—";
-    const leftScore=winner.side==="Left" ? winner.winnerScore : winner.loserScore;
-    const rightScore=winner.side==="Right" ? winner.winnerScore : winner.loserScore;
-
-    currentWinnerMeta.innerHTML=
-      '<span class="sideLeft">'+escapeHtml(leftName)+'</span>'+
-      ' '+leftScore+
-      ' - '+
-      rightScore+' '+
-      '<span class="sideRight">'+escapeHtml(rightName)+'</span>'+
-      ' · '+formatHighscoreDate(winner.timestamp);
-  }else{
-    currentWinner.textContent="No winner yet";
-    currentWinnerMeta.textContent="Play the first match";
-  }
-
-  historyList.innerHTML="";
-
-  if(!history.length){
-    const row=document.createElement("div");
-
-    row.className="historyRow";
-    row.innerHTML=
-      "<span>–</span>"+
-      '<div class="historyPlayers"><span class="historyMatchup">No results yet</span></div>'+
-      '<span class="historyScore">–</span>';
-
-    historyList.appendChild(row);
-    return;
-  }
-
-  history.forEach((winner,index)=>{
-    const row=document.createElement("div");
-    row.className="historyRow";
-
-    const sideClass=winner.side==="Left"?"sideLeft":"sideRight";
-
-    const leftName=winner.leftPlayer || "—";
-    const rightName=winner.rightPlayer || "—";
-    const leftWinnerClass=winner.side==="Left" ? " winnerMark" : "";
-    const rightWinnerClass=winner.side==="Right" ? " winnerMark" : "";
-    const leftScore=winner.side==="Left" ? winner.winnerScore : winner.loserScore;
-    const rightScore=winner.side==="Right" ? winner.winnerScore : winner.loserScore;
-
-    row.innerHTML=
-      "<span>"+(index+1)+"</span>"+
-      '<div class="historyPlayers">'+
-        '<span class="historyMatchup">'+
-          '<span class="sideLeft'+leftWinnerClass+'">'+escapeHtml(leftName)+'</span>'+
-          ' <strong>'+leftScore+'</strong>'+
-          '<span class="versus">-</span>'+
-          '<strong>'+rightScore+'</strong> '+
-          '<span class="sideRight'+rightWinnerClass+'">'+escapeHtml(rightName)+'</span>'+
-        '</span>'+
-        '<span class="historyDate">'+formatHighscoreDate(winner.timestamp)+'</span>'+
-      '</div>'+
-      '<span class="historyScore">'+(winner.side==="Left"?"L":"R")+'</span>';
-
-    historyList.appendChild(row);
-  });
-}
-
-function escapeHtml(s){
-  return String(s).replace(
-    /[&<>"']/g,
-    m=>({
-      "&":"&amp;",
-      "<":"&lt;",
-      ">":"&gt;",
-      "\"":"&quot;",
-      "'":"&#039;"
-    }[m])
-  );
-}
-
-function formatHighscoreDate(value){
-  if(!value)return "—";
-
-  const date=new Date(value);
-
-  if(Number.isNaN(date.getTime()))return "—";
-
-  return new Intl.DateTimeFormat("en-GB",{
-    day:"2-digit",
-    month:"2-digit",
-    year:"numeric",
-    hour:"2-digit",
-    minute:"2-digit"
-  }).format(date);
-}
-
-function resize(){
-  const rect=gamePanel.getBoundingClientRect();
-
-  dpr=Math.min(devicePixelRatio||1,2);
-  width=rect.width;
-  height=rect.height;
-
-  canvas.width=Math.round(width*dpr);
-  canvas.height=Math.round(height*dpr);
-
-  canvas.style.width=width+"px";
-  canvas.style.height=height+"px";
-
-  ctx.setTransform(dpr,0,0,dpr,0,0);
-
-  const paddleWidth=Math.max(10,width*.018);
-  const paddleHeight=Math.max(62,height*.22);
-  const margin=Math.max(18,width*.035);
-
-  left.width=right.width=paddleWidth;
-  left.height=right.height=paddleHeight;
-
-  left.x=margin+paddleWidth;
-  right.x=width-margin-(paddleWidth*2);
-
-  left.y=clamp(
-    left.y||height/2-paddleHeight/2,
-    0,
-    height-paddleHeight
-  );
-
-  right.y=clamp(
-    right.y||height/2-paddleHeight/2,
-    0,
-    height-paddleHeight
-  );
-
-  ball.radius=Math.max(
-    7,
-    Math.min(width,height)*.014
-  );
-
-  if(!running||serving||gameOver){
-    centerBall();
-  }
-}
-
-function centerBall(){
-  ball.x=width/2;
-  ball.y=height/2;
-  ball.vx=0;
-  ball.vy=0;
-}
-
-function centerPaddles(){
-  left.y=height/2-left.height/2;
-  right.y=height/2-right.height/2;
-}
-
-function setPaddle(side,clientY){
-  const rect=canvas.getBoundingClientRect();
-  const paddle=side==="left"?left:right;
-
-  paddle.y=clamp(
-    clientY-rect.top-paddle.height/2,
-    0,
-    height-paddle.height
-  );
-}
-
-function activeSides(){
-  let hasLeft=false;
-  let hasRight=false;
-
-  for(const side of pointers.values()){
-    if(side==="left")hasLeft=true;
-    if(side==="right")hasRight=true;
-  }
-
-  return{hasLeft,hasRight};
-}
-
-function updateTouchStatus(){
-  const{hasLeft,hasRight}=activeSides();
-
-  leftTouchState.textContent=
-    hasLeft?"Finger detected":"Waiting for finger";
-
-  rightTouchState.textContent=
-    hasRight?"Finger detected":"Waiting for finger";
-
-  leftTouchState.classList.toggle("ready",hasLeft);
-  rightTouchState.classList.toggle("ready",hasRight);
-
-  if(
-    app.classList.contains("playing") &&
-    waitingForPlayers &&
-    !countdownActive &&
-    hasLeft &&
-    hasRight
-  ){
-    beginCountdown();
-  }
-}
-
-canvas.addEventListener("pointerdown",e=>{
-  e.preventDefault();
-
-  canvas.setPointerCapture?.(e.pointerId);
-
-  const rect=canvas.getBoundingClientRect();
-
-  const side=
-    (e.clientX-rect.left)<rect.width/2
-      ?"left"
-      :"right";
-
-  pointers.set(e.pointerId,side);
-
-  setPaddle(side,e.clientY);
-  updateTouchStatus();
-});
-
-canvas.addEventListener("pointermove",e=>{
-  if(pointers.has(e.pointerId)){
-    e.preventDefault();
-
-    setPaddle(
-      pointers.get(e.pointerId),
-      e.clientY
-    );
-  }
-});
-
-[
-  "pointerup",
-  "pointercancel",
-  "lostpointercapture"
-].forEach(type=>{
-  canvas.addEventListener(type,e=>{
-    pointers.delete(e.pointerId);
-    updateTouchStatus();
-  });
-});
-
-[
-  "touchstart",
-  "touchmove",
-  "gesturestart"
-].forEach(type=>{
-  canvas.addEventListener(
-    type,
-    e=>e.preventDefault(),
-    {passive:false}
-  );
-});
-
-function beginCountdown(){
-  if(running||countdownActive||gameOver)return;
-
-  setGameState("countdown");
-
-  countdownActive=true;
-  countdownIndex=0;
-
-  countdownEl.classList.add("show");
-
-  runCountdownStep();
-}
-
-function runCountdownStep(){
-  const values=["3","2","1"];
-  const{hasLeft,hasRight}=activeSides();
-
-  if(!hasLeft||!hasRight){
-    cancelCountdown();
-    return;
-  }
-
-  countdownEl.textContent=values[countdownIndex];
-
-  if(countdownIndex===values.length-1){
-    countdownTimer=setTimeout(()=>{
-      countdownEl.classList.remove("show");
-      countdownActive=false;
-      startRally();
-    },COUNTDOWN_STEP_MS);
-
-    return;
-  }
-
-  countdownIndex++;
-
-  countdownTimer=setTimeout(
-    runCountdownStep,
-    COUNTDOWN_STEP_MS
-  );
-}
-
-function cancelCountdown(){
-  clearTimeout(countdownTimer);
-
-  countdownTimer=null;
-  countdownActive=false;
-
-  countdownEl.classList.remove("show");
-
-  setGameState("waiting");
-}
-
-function prepareGame(){
-  applyLevel();
-
-  rallyDirection=Math.random()<.5?-1:1;
-
-  setGameState("waiting");
-
-  score.left=0;
-  score.right=0;
-
-  updateScore();
-
-  running=false;
-  paused=false;
-  gameOver=false;
-  serving=false;
-
-  waitingForPlayers=true;
-
-  pointers.clear();
-
-  centerPaddles();
-  centerBall();
-
-  updateTouchStatus();
-
-  setTimeout(resize,0);
-}
-
-function startRally(){
-  applyLevel();
-
-  setGameState("rally");
-
-  gameOver=false;
-  paused=false;
-  running=true;
-
-  waitingForPlayers=false;
-  serving=false;
-
-  launchBall(rallyDirection);
-}
-
-function returnToMenu(){
-  clearTimeout(countdownTimer);
-
-  countdownTimer=null;
-  countdownActive=false;
-
-  countdownEl.classList.remove("show");
-
-  running=false;
-  paused=false;
-  gameOver=false;
-  serving=false;
-
-  waitingForPlayers=false;
-
-  score.left=0;
-  score.right=0;
-
-  updateScore();
-
-  pointers.clear();
-
-  setGameState("menu");
-
-  resize();
-
-  centerBall();
-  centerPaddles();
-
-  updatePlayerDisplay();
-}
-
-function prepareNextRally(dir){
-  running=false;
-  serving=false;
-  waitingForPlayers=true;
-
-  rallyDirection=dir;
-
-  pointers.clear();
-
-  centerBall();
-
-  setGameState("waiting");
-
-  updateTouchStatus();
-}
-
-function launchBall(dir){
-  const angle=-.52+Math.random()*1.04;
-
-  ball.speed=currentStartSpeed;
-
-  ball.vx=Math.cos(angle)*ball.speed*dir;
-  ball.vy=Math.sin(angle)*ball.speed;
-
-  serving=false;
-}
-
-function update(dt){
-  if(!running||paused||gameOver)return;
-  if(serving)return;
-
-  ball.x+=ball.vx*dt;
-  ball.y+=ball.vy*dt;
-
-  if(ball.y-ball.radius<=0&&ball.vy<0){
-    ball.y=ball.radius;
-    ball.vy*=-1;
-  }
-
-  if(ball.y+ball.radius>=height&&ball.vy>0){
-    ball.y=height-ball.radius;
-    ball.vy*=-1;
-  }
-
-  collide(left,1);
-  collide(right,-1);
-
-  if(ball.x+ball.radius<0){
-    score.right++;
-    point("right");
-  }else if(ball.x-ball.radius>width){
-    score.left++;
-    point("left");
-  }
-}
-
-function collide(paddle,direction){
-  const approaching=
-    direction===1
-      ?ball.vx<0
-      :ball.vx>0;
-
-  if(!approaching)return;
-
-  const overlapX=
-    ball.x+ball.radius>=paddle.x &&
-    ball.x-ball.radius<=paddle.x+paddle.width;
-
-  const overlapY=
-    ball.y+ball.radius>=paddle.y &&
-    ball.y-ball.radius<=paddle.y+paddle.height;
-
-  if(!overlapX||!overlapY)return;
-
-  const relative=clamp(
-    (
-      ball.y-
-      (paddle.y+paddle.height/2)
-    )/
-    (paddle.height/2),
-    -1,
-    1
-  );
-
-  const angle=relative*Math.PI*.38;
-
-  ball.speed=Math.min(
-    currentMaxSpeed,
-    Math.max(ball.speed,currentStartSpeed)*currentIncrease
-  );
-
-  ball.vx=Math.cos(angle)*ball.speed*direction;
-  ball.vy=Math.sin(angle)*ball.speed;
-
-  ball.x=
-    direction===1
-      ?paddle.x+paddle.width+ball.radius
-      :paddle.x-ball.radius;
-}
-
-function point(side){
-  updateScore();
-
-  if(score[side]>=WINNING_SCORE){
-    running=false;
-    gameOver=true;
-
-    pointers.clear();
-
-    finishGame(side);
-  }else{
-    prepareNextRally(
-      side==="left"?-1:1
-    );
-  }
-}
-
-function updateScore(){
-  scoreLeftEl.textContent=score.left;
-  scoreRightEl.textContent=score.right;
-}
-
-async function finishGame(side){
-  const loserSide=
-    side==="left"
-      ?"right"
-      :"left";
-
-  const winnerName=
-    side==="left"
-      ?playerNames.left
-      :playerNames.right;
-
-  const entry={
-    name:winnerName,
-    leftPlayer:playerNames.left,
-    rightPlayer:playerNames.right,
-    level:selectedLevel,
-    side:side==="left"?"Left":"Right",
-    winnerScore:score[side],
-    loserScore:score[loserSide],
-    timestamp:new Date().toISOString()
-  };
-
-  saveLocalHistory(entry);
-
-  try{
-    await saveOnlineWinner(entry);
-  }catch(err){
-    console.error(
-      "Could not save winner online:",
-      err
-    );
-  }
-
-  await renderWinnerData();
-  await exitFullscreen();
-
-  returnToMenu();
-}
-
-function draw(){
-  ctx.clearRect(0,0,width,height);
-
-  if(app.classList.contains("playing")){
-    ctx.fillStyle="#000";
-    ctx.fillRect(0,0,width,height);
-  }else{
-    const gradient=ctx.createLinearGradient(
-      0,0,width,height
-    );
-
-    gradient.addColorStop(0,"#07101d");
-    gradient.addColorStop(.5,"#080b14");
-    gradient.addColorStop(1,"#120916");
-
-    ctx.fillStyle=gradient;
-    ctx.fillRect(0,0,width,height);
-  }
-
-  ctx.strokeStyle="rgba(255,255,255,.16)";
-  ctx.lineWidth=2;
-  ctx.setLineDash([12,16]);
-
-  ctx.beginPath();
-  ctx.moveTo(width/2,20);
-  ctx.lineTo(width/2,height-20);
-  ctx.stroke();
-
-  ctx.setLineDash([]);
-
-  drawPaddle(left,"#38d7ff");
-  drawPaddle(right,"#ff5b8a");
-
-  ctx.save();
-  ctx.fillStyle="#fff";
-  ctx.shadowColor="#fff";
-  ctx.shadowBlur=20;
-
-  ctx.beginPath();
-  ctx.arc(
-    ball.x,
-    ball.y,
-    ball.radius,
-    0,
-    Math.PI*2
-  );
-  ctx.fill();
-
-  ctx.restore();
-}
-
-function drawPaddle(paddle,color){
-  ctx.save();
-
-  ctx.fillStyle=color;
-  ctx.shadowColor=color;
-  ctx.shadowBlur=22;
-
-  ctx.fillRect(
-    paddle.x,
-    paddle.y,
-    paddle.width,
-    paddle.height
-  );
-
-  ctx.restore();
-}
-
-function loop(t){
-  const dt=Math.min(
-    .033,
-    Math.max(
-      0,
-      (t-lastTime)/1000||0
-    )
-  );
-
-  lastTime=t;
-
-  update(dt);
-  draw();
-
-  requestAnimationFrame(loop);
-}
-
-startButton.onclick=async()=>{
-  if(!playersAreSet()){
-    openPlayerEntry();
-    return;
-  }
-
-  await enterFullscreen();
-  prepareGame();
-};
-
-resetPlayersButton.onclick=()=>{
-  resetPlayers();
-};
-
-savePlayersButton.onclick=
-  saveEnteredPlayersAndStart;
-
-backToMenuButton.onclick=async()=>{
-  await exitFullscreen();
-  returnToMenu();
-};
-
-leftPlayerInput.addEventListener("keydown",e=>{
-  if(e.key==="Enter"){
-    rightPlayerInput.focus();
-  }
-});
-
-rightPlayerInput.addEventListener("keydown",e=>{
-  if(e.key==="Enter"){
-    saveEnteredPlayersAndStart();
-  }
-});
-
+async function enterFullscreen(){const el=document.documentElement;try{if(document.fullscreenElement||document.webkitFullscreenElement)return;if(el.requestFullscreen)await el.requestFullscreen();else if(el.webkitRequestFullscreen)el.webkitRequestFullscreen()}catch(err){console.log("Fullscreen not available:",err)}}
+async function exitFullscreen(){try{if(document.fullscreenElement&&document.exitFullscreen)await document.exitFullscreen();else if(document.webkitFullscreenElement&&document.webkitExitFullscreen)document.webkitExitFullscreen()}catch(err){console.log("Could not exit fullscreen:",err)}}
+function ensureAudio(){if(!SOUND_ENABLED)return;try{if(!audioContext)audioContext=new (window.AudioContext||window.webkitAudioContext)();if(audioContext.state==="suspended")audioContext.resume().catch(()=>{})}catch(err){console.warn("Audio unavailable:",err)}}
+function playBounceSound(kind="wall"){if(!SOUND_ENABLED)return;ensureAudio();if(!audioContext||audioContext.state!=="running")return;const now=audioContext.currentTime;const oscillator=audioContext.createOscillator();const gain=audioContext.createGain();oscillator.type=kind==="paddle"?"square":"triangle";oscillator.frequency.setValueAtTime(kind==="paddle"?PADDLE_SOUND_FREQUENCY:WALL_SOUND_FREQUENCY,now);gain.gain.setValueAtTime(SOUND_VOLUME,now);gain.gain.exponentialRampToValueAtTime(.0001,now+SOUND_DURATION_MS/1000);oscillator.connect(gain);gain.connect(audioContext.destination);oscillator.start(now);oscillator.stop(now+SOUND_DURATION_MS/1000)}
+function registerBounce(kind){bounceCount++;playBounceSound(kind)}
+
+function loadPlayers(){try{const stored=JSON.parse(localStorage.getItem(PLAYER_STORAGE_KEY)||"null");if(stored&&typeof stored.left==="string"&&typeof stored.right==="string"&&stored.left.trim()&&stored.right.trim())return{left:stored.left.trim().slice(0,MAX_PLAYER_NAME_LENGTH),right:stored.right.trim().slice(0,MAX_PLAYER_NAME_LENGTH)}}catch(err){console.warn("Could not load players:",err)}return{left:"",right:""}}
+function savePlayers(){localStorage.setItem(PLAYER_STORAGE_KEY,JSON.stringify(playerNames))}
+function playersAreSet(){return Boolean(playerNames.left&&playerNames.right)}
+function updatePlayerDisplay(){menuLeftName.textContent=playerNames.left||"";menuRightName.textContent=playerNames.right||"";leftPlayerHintTitle.textContent=playerNames.left?"LEFT PLAYER · "+playerNames.left:"LEFT PLAYER";rightPlayerHintTitle.textContent=playerNames.right?"RIGHT PLAYER · "+playerNames.right:"RIGHT PLAYER"}
+function openPlayerEntry(){playerEntryError.textContent="";leftPlayerInput.value=playerNames.left||"";rightPlayerInput.value=playerNames.right||"";playerEntry.classList.remove("hidden");setTimeout(()=>leftPlayerInput.focus(),50)}
+function closePlayerEntry(){playerEntry.classList.add("hidden")}
+async function saveEnteredPlayersAndStart(){ensureAudio();const leftName=leftPlayerInput.value.trim().slice(0,MAX_PLAYER_NAME_LENGTH).toUpperCase();const rightName=rightPlayerInput.value.trim().slice(0,MAX_PLAYER_NAME_LENGTH).toUpperCase();if(!leftName){playerEntryError.textContent="Enter a name for the Left Player.";leftPlayerInput.focus();return}if(!rightName){playerEntryError.textContent="Enter a name for the Right Player.";rightPlayerInput.focus();return}playerNames={left:leftName,right:rightName};savePlayers();updatePlayerDisplay();closePlayerEntry();await enterFullscreen();prepareGame()}
+function resetPlayers(){playerNames={left:"",right:""};localStorage.removeItem(PLAYER_STORAGE_KEY);updatePlayerDisplay()}
+function setGameState(state){app.classList.remove("waiting-state","countdown-state","rally-state","rally-active","playMode");if(state==="menu"){app.classList.remove("playing");return}app.classList.add("playing");if(state==="waiting")app.classList.add("waiting-state");if(state==="countdown")app.classList.add("countdown-state");if(state==="rally")app.classList.add("rally-state")}
+function getStartSpeed(level){return BASE_START_BALL_SPEED*LEVEL_SPEED_MULTIPLIERS[level-1]}
+function getMaxSpeed(level){return BASE_MAX_BALL_SPEED*LEVEL_SPEED_MULTIPLIERS[level-1]}
+function getIncrease(level){return BASE_SPEED_INCREASE+(level-DEFAULT_LEVEL)*.003}
+function clamp(v,min,max){return Math.max(min,Math.min(max,v))}
+function loadSelectedLevel(){const n=Number(localStorage.getItem(LEVEL_STORAGE_KEY));return Number.isInteger(n)&&n>=1&&n<=10?n:DEFAULT_LEVEL}
+function applyLevel(){if(running||countdownActive)return;currentStartSpeed=getStartSpeed(selectedLevel);currentMaxSpeed=getMaxSpeed(selectedLevel);currentIncrease=getIncrease(selectedLevel);ball.speed=currentStartSpeed;localStorage.setItem(LEVEL_STORAGE_KEY,String(selectedLevel));renderLevels();renderWinnerData()}
+function renderLevels(){levelGrid.innerHTML="";for(let level=1;level<=10;level++){const button=document.createElement("button");button.className="levelBtn"+(level===selectedLevel?" active":"");button.innerHTML="<span>"+level+"</span><small>"+LEVEL_NAMES[level-1]+"</small>";button.onclick=()=>{if(!running&&!countdownActive){selectedLevel=level;applyLevel()}};levelGrid.appendChild(button)}}
+function loadLocalHistory(){try{const data=JSON.parse(localStorage.getItem(HISTORY_STORAGE_KEY)||"[]");return Array.isArray(data)?data:[]}catch{return[]}}
+function saveLocalHistory(entry){const history=loadLocalHistory();history.unshift(entry);localStorage.setItem(HISTORY_STORAGE_KEY,JSON.stringify(history.slice(0,250)))}
+function compareHighscores(a,b){const ab=Number.isFinite(Number(a.bounces))?Number(a.bounces):Number.POSITIVE_INFINITY;const bb=Number.isFinite(Number(b.bounces))?Number(b.bounces):Number.POSITIVE_INFINITY;if(ab!==bb)return ab-bb;return new Date(b.timestamp||0)-new Date(a.timestamp||0)}
+function normalizeOnlineWinner(w){return{name:w.player_name,leftPlayer:w.left_player||(w.side==="Left"?w.player_name:""),rightPlayer:w.right_player||(w.side==="Right"?w.player_name:""),level:Number(w.level),side:w.side,winnerScore:Number(w.winner_score),loserScore:Number(w.loser_score),bounces:w.bounces===null?null:Number(w.bounces),timestamp:w.created_at}}
+function supabaseHeaders(extra={}){return{"apikey":SUPABASE_PUBLISHABLE_KEY,"Authorization":"Bearer "+SUPABASE_PUBLISHABLE_KEY,"Content-Type":"application/json",...extra}}
+async function fetchOnlineHistory(level){const url=SUPABASE_URL+"/rest/v1/"+PONG_HIGHSCORE_TABLE+"?select=player_name,left_player,right_player,level,side,winner_score,loser_score,bounces,created_at"+"&level=eq."+encodeURIComponent(level)+"&order=bounces.asc.nullslast,created_at.desc&limit=25";const response=await fetch(url,{headers:supabaseHeaders()});if(!response.ok)throw new Error("Highscore load failed: "+response.status);return(await response.json()).map(normalizeOnlineWinner)}
+async function saveOnlineWinner(entry){const payload={player_name:entry.name,left_player:entry.leftPlayer,right_player:entry.rightPlayer,level:Number(entry.level),side:entry.side,winner_score:Number(entry.winnerScore),loser_score:Number(entry.loserScore),bounces:Number(entry.bounces)};const response=await fetch(SUPABASE_URL+"/rest/v1/"+PONG_HIGHSCORE_TABLE,{method:"POST",headers:supabaseHeaders({"Prefer":"return=minimal"}),body:JSON.stringify(payload)});if(!response.ok)throw new Error("Highscore save failed: "+response.status+" "+await response.text())}
+function bounceLabel(value){return Number.isFinite(Number(value))?Number(value)+" B":"— B"}
+async function renderWinnerData(){const requestedLevel=selectedLevel;winnerCardTitle.textContent="Best result · Level "+requestedLevel;historyTitle.textContent="Top 25 · Level "+requestedLevel;currentWinner.textContent="Loading...";currentWinnerMeta.textContent="Online highscores";historyList.innerHTML="";let history=[];try{history=await fetchOnlineHistory(requestedLevel)}catch(err){console.warn(err);history=loadLocalHistory().filter(x=>Number(x.level)===requestedLevel).sort(compareHighscores).slice(0,25)}if(requestedLevel!==selectedLevel)return;if(history.length){const winner=history[0];currentWinner.textContent=winner.name;const leftName=winner.leftPlayer||"—",rightName=winner.rightPlayer||"—";const leftScore=winner.side==="Left"?winner.winnerScore:winner.loserScore;const rightScore=winner.side==="Right"?winner.winnerScore:winner.loserScore;currentWinnerMeta.innerHTML='<span class="sideLeft">'+escapeHtml(leftName)+'</span> '+leftScore+' - '+rightScore+' <span class="sideRight">'+escapeHtml(rightName)+'</span>'+' · '+bounceLabel(winner.bounces)+' · '+formatHighscoreDate(winner.timestamp)}else{currentWinner.textContent="No winner yet";currentWinnerMeta.textContent="Play the first match"}historyList.innerHTML="";if(!history.length){const row=document.createElement("div");row.className="historyRow";row.innerHTML="<span>–</span><div class=\"historyPlayers\"><span class=\"historyMatchup\">No results yet</span></div><span class=\"historyScore\">–</span>";historyList.appendChild(row);return}history.forEach((winner,index)=>{const row=document.createElement("div");row.className="historyRow";const leftName=winner.leftPlayer||"—",rightName=winner.rightPlayer||"—";const leftWinnerClass=winner.side==="Left"?" winnerMark":"",rightWinnerClass=winner.side==="Right"?" winnerMark":"";const leftScore=winner.side==="Left"?winner.winnerScore:winner.loserScore;const rightScore=winner.side==="Right"?winner.winnerScore:winner.loserScore;row.innerHTML="<span>"+(index+1)+"</span>"+'<div class="historyPlayers"><span class="historyMatchup"><span class="sideLeft'+leftWinnerClass+'">'+escapeHtml(leftName)+'</span> <strong>'+leftScore+'</strong><span class="versus">-</span><strong>'+rightScore+'</strong> <span class="sideRight'+rightWinnerClass+'">'+escapeHtml(rightName)+'</span></span><span class="historyDate">'+formatHighscoreDate(winner.timestamp)+'</span></div><span class="historyScore">'+bounceLabel(winner.bounces)+'</span>';historyList.appendChild(row)})}
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]))}
+function formatHighscoreDate(value){if(!value)return"—";const date=new Date(value);if(Number.isNaN(date.getTime()))return"—";return new Intl.DateTimeFormat("en-GB",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"}).format(date)}
+
+function resize(){const rect=gamePanel.getBoundingClientRect();dpr=Math.min(devicePixelRatio||1,2);width=rect.width;height=rect.height;canvas.width=Math.round(width*dpr);canvas.height=Math.round(height*dpr);canvas.style.width=width+"px";canvas.style.height=height+"px";ctx.setTransform(dpr,0,0,dpr,0,0);const paddleWidth=Math.max(10,width*.018),paddleHeight=Math.max(62,height*.22),margin=Math.max(18,width*.035);left.width=right.width=paddleWidth;left.height=right.height=paddleHeight;left.x=margin+paddleWidth;right.x=width-margin-(paddleWidth*2);left.y=clamp(left.y||height/2-paddleHeight/2,0,height-paddleHeight);right.y=clamp(right.y||height/2-paddleHeight/2,0,height-paddleHeight);ball.radius=Math.max(7,Math.min(width,height)*.014);if(!running||serving||gameOver)centerBall()}
+function centerBall(){ball.x=width/2;ball.y=height/2;ball.vx=0;ball.vy=0}
+function centerPaddles(){left.y=height/2-left.height/2;right.y=height/2-right.height/2}
+function setPaddle(side,clientY){const rect=canvas.getBoundingClientRect(),paddle=side==="left"?left:right;paddle.y=clamp(clientY-rect.top-paddle.height/2,0,height-paddle.height)}
+function activeSides(){let hasLeft=false,hasRight=false;for(const side of pointers.values()){if(side==="left")hasLeft=true;if(side==="right")hasRight=true}return{hasLeft,hasRight}}
+function updateTouchStatus(){const{hasLeft,hasRight}=activeSides();leftTouchState.textContent=hasLeft?"Finger detected":"Waiting for finger";rightTouchState.textContent=hasRight?"Finger detected":"Waiting for finger";leftTouchState.classList.toggle("ready",hasLeft);rightTouchState.classList.toggle("ready",hasRight);if(app.classList.contains("playing")&&waitingForPlayers&&!countdownActive&&hasLeft&&hasRight)beginCountdown()}
+canvas.addEventListener("pointerdown",e=>{e.preventDefault();ensureAudio();canvas.setPointerCapture?.(e.pointerId);const rect=canvas.getBoundingClientRect();const side=(e.clientX-rect.left)<rect.width/2?"left":"right";pointers.set(e.pointerId,side);setPaddle(side,e.clientY);updateTouchStatus()});
+canvas.addEventListener("pointermove",e=>{if(pointers.has(e.pointerId)){e.preventDefault();setPaddle(pointers.get(e.pointerId),e.clientY)}});
+["pointerup","pointercancel","lostpointercapture"].forEach(type=>canvas.addEventListener(type,e=>{pointers.delete(e.pointerId);updateTouchStatus()}));
+["touchstart","touchmove","gesturestart"].forEach(type=>canvas.addEventListener(type,e=>e.preventDefault(),{passive:false}));
+
+function beginCountdown(){if(running||countdownActive||gameOver)return;setGameState("countdown");countdownActive=true;countdownIndex=0;countdownEl.classList.add("show");runCountdownStep()}
+function runCountdownStep(){const values=["3","2","1"],{hasLeft,hasRight}=activeSides();if(!hasLeft||!hasRight){cancelCountdown();return}countdownEl.textContent=values[countdownIndex];if(countdownIndex===values.length-1){countdownTimer=setTimeout(()=>{countdownEl.classList.remove("show");countdownActive=false;startRally()},COUNTDOWN_STEP_MS);return}countdownIndex++;countdownTimer=setTimeout(runCountdownStep,COUNTDOWN_STEP_MS)}
+function cancelCountdown(){clearTimeout(countdownTimer);countdownTimer=null;countdownActive=false;countdownEl.classList.remove("show");setGameState("waiting")}
+function prepareGame(){applyLevel();rallyDirection=Math.random()<.5?-1:1;setGameState("waiting");score.left=0;score.right=0;bounceCount=0;updateScore();running=false;paused=false;gameOver=false;serving=false;waitingForPlayers=true;pointers.clear();centerPaddles();centerBall();updateTouchStatus();setTimeout(resize,0)}
+function startRally(){applyLevel();setGameState("rally");gameOver=false;paused=false;running=true;waitingForPlayers=false;serving=false;launchBall(rallyDirection)}
+function returnToMenu(){clearTimeout(countdownTimer);countdownTimer=null;countdownActive=false;countdownEl.classList.remove("show");running=false;paused=false;gameOver=false;serving=false;waitingForPlayers=false;score.left=0;score.right=0;bounceCount=0;updateScore();pointers.clear();setGameState("menu");resize();centerBall();centerPaddles();updatePlayerDisplay()}
+function prepareNextRally(dir){running=false;serving=false;waitingForPlayers=true;rallyDirection=dir;pointers.clear();centerBall();setGameState("waiting");updateTouchStatus()}
+function launchBall(dir){const angle=-.52+Math.random()*1.04;ball.speed=currentStartSpeed;ball.vx=Math.cos(angle)*ball.speed*dir;ball.vy=Math.sin(angle)*ball.speed;serving=false}
+function update(dt){if(!running||paused||gameOver||serving)return;const maxTravel=Math.max(Math.abs(ball.vx),Math.abs(ball.vy))*dt;const steps=Math.max(1,Math.min(40,Math.ceil(maxTravel/MAX_PHYSICS_STEP_PX)));const stepDt=dt/steps;for(let i=0;i<steps&&running&&!gameOver;i++)updatePhysicsStep(stepDt)}
+function updatePhysicsStep(dt){ball.x+=ball.vx*dt;ball.y+=ball.vy*dt;if(ball.y-ball.radius<=0&&ball.vy<0){ball.y=ball.radius;ball.vy*=-1;registerBounce("wall")}if(ball.y+ball.radius>=height&&ball.vy>0){ball.y=height-ball.radius;ball.vy*=-1;registerBounce("wall")}collide(left,1);collide(right,-1);if(ball.x+ball.radius<0){score.right++;point("right")}else if(ball.x-ball.radius>width){score.left++;point("left")}}
+function collide(paddle,direction){const approaching=direction===1?ball.vx<0:ball.vx>0;if(!approaching)return;const overlapX=ball.x+ball.radius>=paddle.x&&ball.x-ball.radius<=paddle.x+paddle.width;const overlapY=ball.y+ball.radius>=paddle.y&&ball.y-ball.radius<=paddle.y+paddle.height;if(!overlapX||!overlapY)return;const relative=clamp((ball.y-(paddle.y+paddle.height/2))/(paddle.height/2),-1,1),angle=relative*Math.PI*.38;ball.speed=Math.min(currentMaxSpeed,Math.max(ball.speed,currentStartSpeed)*currentIncrease);ball.vx=Math.cos(angle)*ball.speed*direction;ball.vy=Math.sin(angle)*ball.speed;ball.x=direction===1?paddle.x+paddle.width+ball.radius:paddle.x-ball.radius;registerBounce("paddle")}
+function point(side){updateScore();if(score[side]>=WINNING_SCORE){running=false;gameOver=true;pointers.clear();finishGame(side)}else prepareNextRally(side==="left"?-1:1)}
+function updateScore(){scoreLeftEl.textContent=score.left;scoreRightEl.textContent=score.right}
+async function finishGame(side){const loserSide=side==="left"?"right":"left";const winnerName=side==="left"?playerNames.left:playerNames.right;const entry={name:winnerName,leftPlayer:playerNames.left,rightPlayer:playerNames.right,level:selectedLevel,side:side==="left"?"Left":"Right",winnerScore:score[side],loserScore:score[loserSide],bounces:bounceCount,timestamp:new Date().toISOString()};saveLocalHistory(entry);try{await saveOnlineWinner(entry)}catch(err){console.error("Could not save winner online:",err)}await renderWinnerData();await exitFullscreen();returnToMenu()}
+
+function draw(){ctx.clearRect(0,0,width,height);if(app.classList.contains("playing")){ctx.fillStyle="#000";ctx.fillRect(0,0,width,height)}else{const gradient=ctx.createLinearGradient(0,0,width,height);gradient.addColorStop(0,"#07101d");gradient.addColorStop(.5,"#080b14");gradient.addColorStop(1,"#120916");ctx.fillStyle=gradient;ctx.fillRect(0,0,width,height)}ctx.strokeStyle="rgba(255,255,255,.16)";ctx.lineWidth=2;ctx.setLineDash([12,16]);ctx.beginPath();ctx.moveTo(width/2,20);ctx.lineTo(width/2,height-20);ctx.stroke();ctx.setLineDash([]);drawPaddle(left,"#38d7ff");drawPaddle(right,"#ff5b8a");ctx.save();ctx.fillStyle="#fff";ctx.shadowColor="#fff";ctx.shadowBlur=20;ctx.beginPath();ctx.arc(ball.x,ball.y,ball.radius,0,Math.PI*2);ctx.fill();ctx.restore();if(app.classList.contains("playing")){ctx.save();ctx.font="900 14px Arial, sans-serif";ctx.textAlign="center";ctx.textBaseline="top";ctx.fillStyle="rgba(255,255,255,.72)";ctx.shadowColor="rgba(255,255,255,.35)";ctx.shadowBlur=8;ctx.fillText("BOUNCES: "+bounceCount,width/2,14);ctx.restore()}}
+function drawPaddle(paddle,color){ctx.save();ctx.fillStyle=color;ctx.shadowColor=color;ctx.shadowBlur=22;ctx.fillRect(paddle.x,paddle.y,paddle.width,paddle.height);ctx.restore()}
+function loop(t){const dt=Math.min(.033,Math.max(0,(t-lastTime)/1000||0));lastTime=t;update(dt);draw();requestAnimationFrame(loop)}
+
+startButton.onclick=async()=>{ensureAudio();if(!playersAreSet()){openPlayerEntry();return}await enterFullscreen();prepareGame()};
+resetPlayersButton.onclick=()=>resetPlayers();
+savePlayersButton.onclick=saveEnteredPlayersAndStart;
+backToMenuButton.onclick=async()=>{await exitFullscreen();returnToMenu()};
+leftPlayerInput.addEventListener("keydown",e=>{if(e.key==="Enter")rightPlayerInput.focus()});
+rightPlayerInput.addEventListener("keydown",e=>{if(e.key==="Enter")saveEnteredPlayersAndStart()});
 window.addEventListener("resize",resize);
-
-window.addEventListener(
-  "orientationchange",
-  ()=>setTimeout(resize,200)
-);
-
-renderLevels();
-renderWinnerData();
-updatePlayerDisplay();
-resize();
-returnToMenu();
-
-requestAnimationFrame(loop);
+window.addEventListener("orientationchange",()=>setTimeout(resize,200));
+renderLevels();renderWinnerData();updatePlayerDisplay();resize();returnToMenu();requestAnimationFrame(loop);
 </script>
 </body>
 </html>
