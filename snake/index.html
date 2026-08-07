@@ -1,149 +1,243 @@
-<!-- Snake HTML Game | Version 2.1.6 | Moved all frequently changed settings to a configuration block directly below the page title in the HEAD section | Made by Photoluck | Copyright © 2026 Photoluck -->
+<!-- Snake HTML Game | Version 2.1.0.a | Added shared online high scores using Supabase, removed local score storage, added online refresh and export | Made by Photoluck | Copyright © 2026 Photoluck -->
 <!doctype html>
 <html lang="en">
 <head>
     <meta charset="utf-8">
-
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
-    >
-
-    <title>HTML Games - Snake </title>
-
-    <!-- =========================================================
-         APPLICATION CONFIGURATION
-         Change the settings below when creating a new version.
-         ========================================================= -->
-    <script>
-/*
-============================================================
-APPLICATION CONFIGURATION
-Change these values when creating a new release.
-============================================================
-*/
-
-const APP_NAME = "HTML Games - Snake";
-const APP_VERSION = "2.1.6";
-const APP_COPYRIGHT = "© 2026 XX";
-
-/*
-Game settings
-*/
-const CELL_SIZE = 20;
-const MAX_NAME_LENGTH = 10;
-const MAX_HIGH_SCORES_PER_SPEED = 25;
-
-/*
-Speed delays (milliseconds)
-*/
-const SPEED_DELAYS = {
-    1:220,
-    2:185,
-    3:150,
-    4:125,
-    5:100,
-    6:85,
-    7:70,
-    8:58,
-    9:48,
-    10:40
-};
-    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <title>Snake Arcade</title>
 
     <style>
-        * {
-            box-sizing: border-box;
+        :root {
+            --bg: #03040a;
+            --panel: rgba(8, 12, 20, 0.92);
+            --green: #39ff14;
+            --cyan: #2adfff;
+            --pink: #ff2aa8;
+            --amber: #ffd166;
+            --text: #e8fff0;
+            --muted: #9ab9a5;
         }
 
-        html,
-        body {
+        * { box-sizing: border-box; }
+
+        html, body {
             margin: 0;
             width: 100%;
             min-height: 100%;
             overscroll-behavior: none;
-            touch-action: manipulation;
-            -webkit-text-size-adjust: 100%;
+            background: var(--bg);
         }
 
         body {
+            position: relative;
+            min-height: 100vh;
             padding: 10px 0 24px;
+            overflow-x: hidden;
+            overflow-y: auto;
+            color: var(--text);
+            background:
+                radial-gradient(circle at 50% 15%, rgba(57,255,20,.035), transparent 38%),
+                linear-gradient(180deg, #050711 0%, #020308 100%);
+            font-family: "Courier New", monospace;
+        }
+
+        /* Distant alternating blue / pink light */
+        .ambient-glow {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            pointer-events: none;
             overflow: hidden;
-            background: #f2f2f2;
-            font-family: Arial, sans-serif;
+        }
+
+        .ambient-glow::before,
+        .ambient-glow::after {
+            content: "";
+            position: absolute;
+            width: 75vw;
+            height: 75vw;
+            min-width: 430px;
+            min-height: 430px;
+            border-radius: 50%;
+            filter: blur(90px);
+            will-change: opacity, transform;
+        }
+
+        .ambient-glow::before {
+            left: -30vw;
+            top: -8vh;
+            background: rgba(0, 105, 255, .95);
+            animation: blueBeacon 7s ease-in-out infinite;
+        }
+
+        .ambient-glow::after {
+            right: -30vw;
+            bottom: -10vh;
+            background: rgba(255, 20, 155, .95);
+            animation: pinkBeacon 7s ease-in-out infinite;
+        }
+
+        @keyframes blueBeacon {
+            0%, 100% { opacity: .05; transform: translate3d(-3vw, -1vh, 0) scale(.88); }
+            20%      { opacity: .38; transform: translate3d(7vw, 4vh, 0) scale(1.06); }
+            42%      { opacity: .09; transform: translate3d(2vw, 8vh, 0) scale(.95); }
+            70%      { opacity: .26; transform: translate3d(10vw, 2vh, 0) scale(1.02); }
+        }
+
+        @keyframes pinkBeacon {
+            0%, 100% { opacity: .30; transform: translate3d(4vw, 2vh, 0) scale(1.04); }
+            25%      { opacity: .07; transform: translate3d(-7vw, -2vh, 0) scale(.92); }
+            52%      { opacity: .36; transform: translate3d(-10vw, -6vh, 0) scale(1.08); }
+            78%      { opacity: .08; transform: translate3d(-3vw, -9vh, 0) scale(.94); }
+        }
+
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            z-index: 20;
+            pointer-events: none;
+            background: repeating-linear-gradient(
+                to bottom,
+                rgba(255,255,255,.018) 0px,
+                rgba(255,255,255,.018) 1px,
+                transparent 2px,
+                transparent 4px
+            );
+        }
+
+        body::after {
+            content: "";
+            position: fixed;
+            inset: 0;
+            z-index: 19;
+            pointer-events: none;
+            box-shadow: inset 0 0 100px rgba(0,0,0,.75);
         }
 
         .game-wrapper,
         .scores-wrapper {
+            position: relative;
+            z-index: 2;
             display: flex;
             flex-direction: column;
             align-items: center;
         }
 
-        #scoreDisplay {
-            position: relative;
+        .arcade-title {
             width: min(400px, calc(100vw - 20px));
-            margin: 0;
-            padding: 10px 4px;
-            color: white;
-            background: red;
+            margin: 2px 0 10px;
+            color: var(--amber);
             text-align: center;
-            font-size: 18px;
+            font-size: clamp(34px, 10vw, 52px);
+            font-weight: 900;
+            letter-spacing: .14em;
+            padding-left: .14em;
+            text-shadow:
+                0 0 5px rgba(57,255,20,.95),
+                0 0 16px rgba(57,255,20,.60),
+                0 0 30px rgba(57,255,20,.25);
+        }
+
+        #scoreDisplay {
+            width: min(400px, calc(100vw - 20px));
+            margin: 0 0 8px;
+            padding: 10px 4px;
+            border: 1px solid rgba(57,255,20,.42);
+            border-radius: 5px;
+            color: var(--green);
+            background: rgba(5, 10, 13, .90);
+            text-align: center;
+            font-size: 16px;
+            text-shadow: 0 0 7px rgba(57,255,20,.55);
+            box-shadow: inset 0 0 16px rgba(57,255,20,.035);
         }
 
         #game {
             display: block;
             width: min(400px, calc(100vw - 20px));
             height: auto;
-            border: 1px solid black;
+            border: 2px solid var(--green);
+            border-radius: 4px;
             background: black;
             touch-action: none;
             user-select: none;
             -webkit-user-select: none;
             -webkit-touch-callout: none;
+            box-shadow:
+                0 0 8px rgba(57,255,20,.8),
+                0 0 24px rgba(57,255,20,.18);
         }
 
         .controls {
             position: relative;
             display: grid;
-            grid-template-columns: 48px 48px 1fr 88px 48px;
-            gap: 5px;
+            grid-template-columns: 54px minmax(0, 1fr) 92px 54px;
+            gap: 6px;
             width: min(400px, calc(100vw - 20px));
             margin-top: 10px;
         }
 
         button,
         .speed-display {
+            min-width: 0;
             min-height: 48px;
-            border: 0;
-            font: bold 18px monospace;
+            border-radius: 5px;
+            font: bold 17px "Courier New", monospace;
         }
 
         button {
-            color: white;
-            background: black;
+            border: 1px solid rgba(42,223,255,.55);
+            color: var(--cyan);
+            background: rgba(6,12,20,.94);
             cursor: pointer;
-            touch-action: manipulation;
+            text-shadow: 0 0 6px rgba(42,223,255,.55);
+            box-shadow: inset 0 0 10px rgba(42,223,255,.035);
+        }
+
+        button:active {
+            transform: translateY(1px);
+            background: rgba(15,35,45,.98);
         }
 
         button:disabled {
-            opacity: 0.45;
+            opacity: 0.42;
             cursor: default;
+        }
+
+        #startButton {
+            color: var(--green);
+            border-color: rgba(57,255,20,.55);
+            text-shadow: 0 0 7px rgba(57,255,20,.6);
         }
 
         .speed-display {
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
-            color: white;
-            background: #444;
+            border: 1px solid rgba(255,209,102,.45);
+            color: var(--amber);
+            background: rgba(8,12,20,.94);
             text-align: center;
+            font-size: 11px;
             line-height: 1.05;
+            text-shadow: 0 0 6px rgba(255,209,102,.35);
         }
 
         .speed-display span {
             display: block;
-            font-size: 22px;
+            font-size: 20px;
+        }
+
+        #statusMessage {
+            width: min(400px, calc(100vw - 20px));
+            min-height: 20px;
+            margin: 8px 10px 0;
+            color: var(--cyan);
+            font-size: 13px;
+            text-align: center;
+            text-shadow: 0 0 5px rgba(42,223,255,.25);
         }
 
         .scores-wrapper {
@@ -153,9 +247,12 @@ const SPEED_DELAYS = {
         }
 
         .scores-wrapper h3 {
+            width: min(400px, calc(100vw - 20px));
             margin: 0 0 8px;
-            color: blue;
-            font: bold 20px monospace;
+            color: var(--pink);
+            font: bold 18px "Courier New", monospace;
+            text-align: center;
+            text-shadow: 0 0 7px rgba(255,42,168,.45);
         }
 
         .score-table-wrap {
@@ -163,33 +260,35 @@ const SPEED_DELAYS = {
             height: 180px;
             overflow-x: auto;
             overflow-y: scroll;
-            border: 1px solid #b8b8b8;
-            background: white;
+            border: 1px solid rgba(255,42,168,.32);
+            border-radius: 5px;
+            background: rgba(5,8,13,.90);
             -webkit-overflow-scrolling: touch;
             overscroll-behavior: contain;
+            box-shadow: inset 0 0 22px rgba(0,0,0,.6);
         }
 
         #highscores {
             width: 100%;
             border-collapse: collapse;
-            color: blue;
-            font: bold 13px monospace;
+            color: #dffff0;
+            font: bold 13px "Courier New", monospace;
             text-align: left;
             white-space: nowrap;
         }
 
         #highscores th,
         #highscores td {
-            padding: 5px 4px;
-            border-bottom: 1px solid #ccc;
+            padding: 6px 4px;
+            border-bottom: 1px solid rgba(57,255,20,.12);
         }
 
         #highscores th {
             position: sticky;
             top: 0;
             z-index: 1;
-            color: #111;
-            background: #e5e5e5;
+            color: var(--green);
+            background: rgba(5,8,13,.98);
         }
 
         #highscores th:first-child,
@@ -203,180 +302,246 @@ const SPEED_DELAYS = {
 
         .empty-score {
             padding: 10px 4px !important;
-            color: #555;
+            color: var(--muted);
             text-align: center !important;
         }
 
-        #statusMessage {
-            min-height: 20px;
-            margin: 8px 10px 0;
-            color: #333;
-            font-size: 13px;
-            text-align: center;
-        }
 
-        .menu-wrap {
+        .game-stage {
             position: relative;
-        }
-
-        #menuButton {
-            width: 100%;
-            font-size: 23px;
-        }
-
-        .menu-panel {
-            position: absolute;
-            left: 0;
-            top: calc(100% + 6px);
-            z-index: 10;
-            display: none;
-            width: 190px;
-            padding: 6px;
-            border: 1px solid #777;
-            background: white;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
-        }
-
-        .menu-panel.open {
-            display: grid;
-            gap: 6px;
-        }
-
-        .menu-panel button {
-            min-height: 40px;
-            font-size: 13px;
-        }
-
-
-        .app-footer {
             width: min(400px, calc(100vw - 20px));
-            margin: 12px auto 0;
-            text-align: center;
-            color: #777;
-            font: 12px monospace;
-            line-height: 1.4;
         }
 
-        @media (max-height: 760px) {
+        .game-stage #game {
+            width: 100%;
+        }
+
+        .game-overlay {
+            position: absolute;
+            inset: 0;
+            z-index: 5;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+            color: var(--green);
+            text-align: center;
+            font-family: "Courier New", monospace;
+            font-weight: 900;
+            text-shadow:
+                0 0 7px rgba(57,255,20,.95),
+                0 0 18px rgba(57,255,20,.55);
+        }
+
+        #countdownOverlay {
+            color: var(--amber);
+            font-size: clamp(64px, 18vw, 110px);
+            opacity: 0;
+            transform: scale(.7);
+        }
+
+        #countdownOverlay.show {
+            animation: countdownPop .72s ease-out both;
+        }
+
+        @keyframes countdownPop {
+            0%   { opacity: 0; transform: scale(.55); }
+            25%  { opacity: 1; transform: scale(1.08); }
+            70%  { opacity: 1; transform: scale(1); }
+            100% { opacity: 0; transform: scale(.82); }
+        }
+
+        #pressStartOverlay {
+            color: var(--amber);
+            font-size: clamp(18px, 5vw, 28px);
+            letter-spacing: .08em;
+            animation: pressStartBlink 1.15s steps(2, end) infinite;
+        }
+
+        #pressStartOverlay.hidden {
+            display: none;
+        }
+
+        @keyframes pressStartBlink {
+            0%, 45%   { opacity: 1; }
+            46%, 100% { opacity: .25; }
+        }
+
+        #gameOverOverlay {
+            color: var(--amber);
+            display: none;
+            flex-direction: column;
+            gap: 8px;
+            font-size: clamp(28px, 8vw, 44px);
+        }
+
+        #gameOverOverlay.show {
+            display: flex;
+            animation: gameOverFade 1.35s ease both;
+        }
+
+        #gameOverOverlay small {
+            color: var(--cyan);
+            font-size: .42em;
+            text-shadow: 0 0 8px rgba(42,223,255,.5);
+        }
+
+        @keyframes gameOverFade {
+            0%   { opacity: 0; transform: scale(.86); }
+            28%  { opacity: 1; transform: scale(1.03); }
+            74%  { opacity: 1; transform: scale(1); }
+            100% { opacity: .78; transform: scale(1); }
+        }
+
+        #scoreDisplay.high-score-active {
+            color: var(--amber);
+            border-color: rgba(255,209,102,.75);
+            text-shadow:
+                0 0 7px rgba(255,209,102,.9),
+                0 0 18px rgba(255,209,102,.35);
+            box-shadow:
+                inset 0 0 18px rgba(255,209,102,.05),
+                0 0 12px rgba(255,209,102,.14);
+        }
+
+        #startButton:not(:disabled) {
+            animation: startPulse 1.8s ease-in-out infinite;
+        }
+
+        @keyframes startPulse {
+            0%, 100% { box-shadow: 0 0 0 rgba(57,255,20,0), inset 0 0 10px rgba(57,255,20,.03); }
+            50%      { box-shadow: 0 0 15px rgba(57,255,20,.20), inset 0 0 12px rgba(57,255,20,.06); }
+        }
+
+        @media (max-height: 760px) and (orientation: portrait) {
+            .game-stage {
+                width: min(340px, calc(100vw - 20px), calc(100dvh - 335px));
+            }
+        }
+
+        /* Portrait only on phones */
+        #orientationWarning {
+            display: none;
+        }
+
+        @media screen and (max-width: 900px) and (orientation: landscape) {
+            body {
+                overflow: hidden;
+                padding: 0;
+            }
+
+            body > *:not(#orientationWarning):not(.ambient-glow) {
+                display: none !important;
+            }
+
+            #orientationWarning {
+                position: fixed;
+                inset: 0;
+                z-index: 99999;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                padding: 30px;
+                color: var(--green);
+                background: rgba(2,3,8,.94);
+                text-align: center;
+                font-family: "Courier New", monospace;
+            }
+
+            #orientationWarning .rotate-icon {
+                margin-bottom: 20px;
+                font-size: 60px;
+                line-height: 1;
+            }
+
+            #orientationWarning h1 {
+                margin: 0 0 15px;
+                font-size: 26px;
+                text-shadow: 0 0 12px rgba(57,255,20,.6);
+            }
+
+            #orientationWarning p {
+                margin: 0;
+                max-width: 360px;
+                color: var(--cyan);
+                font-size: 17px;
+                line-height: 1.4;
+            }
+        }
+
+        @media (max-height: 760px) and (orientation: portrait) {
             #game {
-                width: min(
-                    360px,
-                    calc(100vw - 20px),
-                    calc(100dvh - 315px)
-                );
+                width: min(340px, calc(100vw - 20px), calc(100dvh - 335px));
             }
 
             #scoreDisplay,
+            .game-stage,
             .controls,
-            .score-table-wrap {
-                width: min(
-                    360px,
-                    calc(100vw - 20px),
-                    calc(100dvh - 315px)
-                );
+            .score-table-wrap,
+            .scores-wrapper h3,
+            .arcade-title {
+                width: min(340px, calc(100vw - 20px), calc(100dvh - 335px));
             }
 
-            .score-table-wrap {
-                height: 135px;
+            .arcade-title {
+                font-size: 30px;
+                margin-bottom: 7px;
             }
+
+            .score-table-wrap { height: 125px; }
         }
     </style>
 </head>
 
 <body>
 
+<div class="ambient-glow" aria-hidden="true"></div>
+
+<div id="orientationWarning">
+    <div class="rotate-icon">📱</div>
+    <h1>HOLD YOUR PHONE VERTICALLY</h1>
+    <p>Please rotate your phone to portrait mode to play Snake.</p>
+</div>
+
 <div class="game-wrapper">
 
-    <h3 id="scoreDisplay">
-        <span id="scoreText">Eaten: 0 | Speed: 5</span>
-    </h3>
+    <div class="arcade-title">SNAKE</div>
 
-    <canvas
-        id="game"
-        width="400"
-        height="400"
-    ></canvas>
+    <h3 id="scoreDisplay">Eaten: 0 | Speed: 5</h3>
+
+    <div class="game-stage">
+        <canvas id="game" width="400" height="400"></canvas>
+        <div id="pressStartOverlay" class="game-overlay">PRESS START</div>
+        <div id="countdownOverlay" class="game-overlay"></div>
+        <div id="gameOverOverlay" class="game-overlay">
+            <div>GAME OVER</div>
+            <small>PRESS START</small>
+        </div>
+    </div>
 
     <div class="controls">
-
-        <div class="menu-wrap">
-
-            <button
-                id="menuButton"
-                type="button"
-                aria-label="Open score menu"
-                aria-expanded="false"
-            >
-                ☰
-            </button>
-
-            <div
-                id="menuPanel"
-                class="menu-panel"
-            >
-                <button
-                    id="refreshButton"
-                    type="button"
-                >
-                    REFRESH SCORES
-                </button>
-
-                <button
-                    id="exportButton"
-                    type="button"
-                >
-                    EXPORT SCORES
-                </button>
-            </div>
-
-        </div>
-
-        <button
-            id="speedDown"
-            type="button"
-            aria-label="Decrease speed"
-        >
-            −
-        </button>
-
-        <button
-            id="startButton"
-            type="button"
-        >
-            START
-        </button>
+<button id="speedDown" type="button" aria-label="Decrease speed">−</button>
+        <button id="startButton" type="button">START</button>
 
         <div class="speed-display">
             SPEED
             <span id="speedValue">5</span>
         </div>
 
-        <button
-            id="speedUp"
-            type="button"
-            aria-label="Increase speed"
-        >
-            +
-        </button>
-
+        <button id="speedUp" type="button" aria-label="Increase speed">+</button>
     </div>
 
     <div id="statusMessage">
         Connecting to the online high-score database...
     </div>
-
 </div>
 
 <div class="scores-wrapper">
-
-    <h3 id="highScoresTitle">
-        Top 25 — Speed 5
-    </h3>
+    <h3 id="highScoresTitle">Top 25 — Speed 5</h3>
 
     <div class="score-table-wrap">
-
         <table id="highscores">
-
             <thead>
                 <tr>
                     <th>Rank</th>
@@ -386,619 +551,345 @@ const SPEED_DELAYS = {
                     <th>Date</th>
                 </tr>
             </thead>
-
             <tbody id="highscoresBody"></tbody>
-
         </table>
-
     </div>
-
-</div>
-
-<div class="app-footer">
-    <div id="footerVersion"></div>
-    <div id="footerCopyright"></div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
-
 "use strict";
 
-
-
-/*
- * ============================================================
- * SUPABASE CONNECTION
- * ============================================================
- */
-
-const SUPABASE_URL =
-    "https://wubibqwcctvrnyiyuobt.supabase.co";
-
-const SUPABASE_PUBLISHABLE_KEY =
-    "sb_publishable_JUQpnazdqXlnuiflP3yg-w_iyEFhY7h";
+const SUPABASE_URL = "https://wubibqwcctvrnyiyuobt.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_JUQpnazdqXlnuiflP3yg-w_iyEFhY7h";
 
 const database = window.supabase.createClient(
     SUPABASE_URL,
     SUPABASE_PUBLISHABLE_KEY
 );
 
-
-/*
- * ============================================================
- * PAGE ELEMENTS
- * ============================================================
- */
-
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
+const scoreDisplay = document.getElementById("scoreDisplay");
+const highScoresBody = document.getElementById("highscoresBody");
+const highScoresTitle = document.getElementById("highScoresTitle");
+const startButton = document.getElementById("startButton");
+const speedDownButton = document.getElementById("speedDown");
+const speedUpButton = document.getElementById("speedUp");
+const speedValue = document.getElementById("speedValue");
+const statusMessage = document.getElementById("statusMessage");
+const pressStartOverlay = document.getElementById("pressStartOverlay");
+const countdownOverlay = document.getElementById("countdownOverlay");
+const gameOverOverlay = document.getElementById("gameOverOverlay");
 
-const scoreDisplay =
-    document.getElementById("scoreDisplay");
-
-const scoreText =
-    document.getElementById("scoreText");
-
-const footerVersion =
-    document.getElementById("footerVersion");
-
-const footerCopyright =
-    document.getElementById("footerCopyright");
-
-const highScoresBody =
-    document.getElementById("highscoresBody");
-
-const highScoresTitle =
-    document.getElementById("highScoresTitle");
-
-const startButton =
-    document.getElementById("startButton");
-
-const speedDownButton =
-    document.getElementById("speedDown");
-
-const speedUpButton =
-    document.getElementById("speedUp");
-
-const speedValue =
-    document.getElementById("speedValue");
-
-const statusMessage =
-    document.getElementById("statusMessage");
-
-const menuButton =
-    document.getElementById("menuButton");
-
-const menuPanel =
-    document.getElementById("menuPanel");
-
-const refreshButton =
-    document.getElementById("refreshButton");
-
-const exportButton =
-    document.getElementById("exportButton");
-
-
-/*
- * ============================================================
- * GAME SETTINGS
- * ============================================================
- */
-
+const CELL_SIZE = 20;
+const MAX_NAME_LENGTH = 10;
+const MAX_HIGH_SCORES_PER_SPEED = 25;
 
 const columns = canvas.width / CELL_SIZE;
 const rows = canvas.height / CELL_SIZE;
 
-/*
- * Speed 5 matches the original speed:
- * 100 milliseconds per game step.
- */
-
-
-
-/*
- * ============================================================
- * GAME VARIABLES
- * ============================================================
- */
+const SPEED_DELAYS = {
+    1: 220,
+    2: 185,
+    3: 150,
+    4: 125,
+    5: 100,
+    6: 85,
+    7: 70,
+    8: 58,
+    9: 48,
+    10: 40
+};
 
 let snake = [];
 let food = null;
-
-let direction = {
-    x: CELL_SIZE,
-    y: 0
-};
-
-let nextDirection = {
-    ...direction
-};
-
+let direction = { x: CELL_SIZE, y: 0 };
+let nextDirection = { ...direction };
 let score = 0;
-
 let selectedSpeed = 5;
 let gameSpeed = 5;
-
 let gameRunning = false;
 let loopTimer = null;
-
 let directionChangedThisTick = false;
-
 let touchStartX = 0;
 let touchStartY = 0;
-
 let onlineHighScores = [];
+let countdownRunning = false;
+let currentTopScore = 0;
+let audioContext = null;
 
 
-/*
- * ============================================================
- * SPEED CONTROLS
- * ============================================================
- */
+function getAudioContext() {
+    if (!audioContext) {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return null;
+        audioContext = new AudioCtx();
+    }
+    if (audioContext.state === "suspended") {
+        audioContext.resume().catch(() => {});
+    }
+    return audioContext;
+}
+
+function playTone(frequency, duration = 0.08, type = "square", volume = 0.035, delay = 0) {
+    const ac = getAudioContext();
+    if (!ac) return;
+
+    const oscillator = ac.createOscillator();
+    const gain = ac.createGain();
+    const startAt = ac.currentTime + delay;
+
+    oscillator.type = type;
+    oscillator.frequency.setValueAtTime(frequency, startAt);
+
+    gain.gain.setValueAtTime(0.0001, startAt);
+    gain.gain.exponentialRampToValueAtTime(volume, startAt + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, startAt + duration);
+
+    oscillator.connect(gain);
+    gain.connect(ac.destination);
+
+    oscillator.start(startAt);
+    oscillator.stop(startAt + duration + 0.02);
+}
+
+function playStartSound() {
+    playTone(330, .08, "square", .03, 0);
+    playTone(440, .08, "square", .03, .09);
+    playTone(660, .12, "square", .035, .18);
+}
+
+function playEatSound() {
+    playTone(740, .055, "square", .025, 0);
+    playTone(980, .06, "square", .02, .045);
+}
+
+function playGameOverSound() {
+    playTone(300, .11, "sawtooth", .035, 0);
+    playTone(220, .14, "sawtooth", .03, .10);
+    playTone(150, .22, "sawtooth", .025, .22);
+}
+
+function updateTopScoreForSelectedSpeed() {
+    const scores = onlineHighScores
+        .filter(entry => Number(entry.speed) === selectedSpeed)
+        .map(entry => Number(entry.score) || 0);
+
+    currentTopScore = scores.length ? Math.max(...scores) : 0;
+    updateHighScoreIndicator();
+}
+
+function updateHighScoreIndicator() {
+    const isBeatingHighScore = gameRunning && score > currentTopScore && score > 0;
+    scoreDisplay.classList.toggle("high-score-active", isBeatingHighScore);
+
+    const displayedSpeed = gameRunning ? gameSpeed : selectedSpeed;
+    scoreDisplay.textContent = isBeatingHighScore
+        ? `Eaten: ${score} | Speed: ${displayedSpeed} | HIGH SCORE!`
+        : `Eaten: ${score} | Speed: ${displayedSpeed}`;
+}
+
+function showCountdownValue(value) {
+    countdownOverlay.textContent = value;
+    countdownOverlay.classList.remove("show");
+    void countdownOverlay.offsetWidth;
+    countdownOverlay.classList.add("show");
+}
+
+function wait(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function runCountdown() {
+    countdownRunning = true;
+    pressStartOverlay.classList.add("hidden");
+    gameOverOverlay.classList.remove("show");
+
+    for (const value of ["3", "2", "1"]) {
+        showCountdownValue(value);
+        playTone(value === "1" ? 660 : 440, .10, "square", .025);
+        await wait(760);
+    }
+
+    countdownOverlay.classList.remove("show");
+    countdownOverlay.textContent = "";
+    countdownRunning = false;
+}
 
 function setSelectedSpeed(newSpeed) {
+    if (gameRunning) return;
 
-    if (gameRunning) {
-        return;
-    }
-
-    selectedSpeed = Math.max(
-        1,
-        Math.min(10, newSpeed)
-    );
-
+    selectedSpeed = Math.max(1, Math.min(10, newSpeed));
     speedValue.textContent = selectedSpeed;
-
-    scoreText.textContent =
-        `Eaten: ${score} | Speed: ${selectedSpeed}`;
-
-    speedDownButton.disabled =
-        selectedSpeed === 1;
-
-    speedUpButton.disabled =
-        selectedSpeed === 10;
-
+    scoreDisplay.textContent = `Eaten: ${score} | Speed: ${selectedSpeed}`;
+    speedDownButton.disabled = selectedSpeed === 1;
+    speedUpButton.disabled = selectedSpeed === 10;
     renderHighScores();
+    updateTopScoreForSelectedSpeed();
 }
 
-speedDownButton.addEventListener(
-    "click",
-    () => setSelectedSpeed(selectedSpeed - 1)
-);
-
-speedUpButton.addEventListener(
-    "click",
-    () => setSelectedSpeed(selectedSpeed + 1)
-);
-
-startButton.addEventListener(
-    "click",
-    startGame
-);
-
-
-/*
- * ============================================================
- * SCORE MENU
- * ============================================================
- */
-
-menuButton.addEventListener("click", event => {
-
-    event.stopPropagation();
-
-    const isOpen =
-        menuPanel.classList.toggle("open");
-
-    menuButton.setAttribute(
-        "aria-expanded",
-        String(isOpen)
-    );
+speedDownButton.addEventListener("click", () => setSelectedSpeed(selectedSpeed - 1));
+speedUpButton.addEventListener("click", () => setSelectedSpeed(selectedSpeed + 1));
+startButton.addEventListener("click", () => {
+    startGame();
 });
-
-menuPanel.addEventListener(
-    "click",
-    event => event.stopPropagation()
-);
-
-document.addEventListener("click", () => {
-
-    menuPanel.classList.remove("open");
-
-    menuButton.setAttribute(
-        "aria-expanded",
-        "false"
-    );
-});
-
-refreshButton.addEventListener(
-    "click",
-    async () => {
-
-        closeMenu();
-
-        await loadOnlineHighScores(true);
-    }
-);
-
-exportButton.addEventListener(
-    "click",
-    exportOnlineHighScores
-);
-
-function closeMenu() {
-
-    menuPanel.classList.remove("open");
-
-    menuButton.setAttribute(
-        "aria-expanded",
-        "false"
-    );
-}
-
-
-/*
- * ============================================================
- * KEYBOARD CONTROLS
- * ============================================================
- */
 
 function requestDirection(requestedDirection) {
-
-    if (
-        !requestedDirection ||
-        !gameRunning ||
-        directionChangedThisTick
-    ) {
-        return;
-    }
+    if (!requestedDirection || !gameRunning || directionChangedThisTick) return;
 
     const isOpposite =
         requestedDirection.x === -direction.x &&
         requestedDirection.y === -direction.y;
 
     if (!isOpposite) {
-
         nextDirection = requestedDirection;
         directionChangedThisTick = true;
     }
 }
 
 document.addEventListener("keydown", event => {
-
     const directions = {
-        ArrowUp: {
-            x: 0,
-            y: -CELL_SIZE
-        },
-
-        ArrowDown: {
-            x: 0,
-            y: CELL_SIZE
-        },
-
-        ArrowLeft: {
-            x: -CELL_SIZE,
-            y: 0
-        },
-
-        ArrowRight: {
-            x: CELL_SIZE,
-            y: 0
-        }
+        ArrowUp: { x: 0, y: -CELL_SIZE },
+        ArrowDown: { x: 0, y: CELL_SIZE },
+        ArrowLeft: { x: -CELL_SIZE, y: 0 },
+        ArrowRight: { x: CELL_SIZE, y: 0 }
     };
 
     if (directions[event.key]) {
-
         event.preventDefault();
-
-        requestDirection(
-            directions[event.key]
-        );
-
+        requestDirection(directions[event.key]);
         return;
     }
 
-    if (
-        (event.code === "Space" ||
-         event.key === " ") &&
-        !gameRunning
-    ) {
+    if ((event.code === "Space" || event.key === " ") && !gameRunning) {
         event.preventDefault();
         startGame();
     }
 });
 
+canvas.addEventListener("touchstart", event => {
+    event.preventDefault();
+    const touch = event.changedTouches[0];
+    touchStartX = touch.clientX;
+    touchStartY = touch.clientY;
+}, { passive: false });
 
-/*
- * ============================================================
- * TOUCH CONTROLS
- * ============================================================
- */
+canvas.addEventListener("touchmove", event => event.preventDefault(), { passive: false });
 
-canvas.addEventListener(
-    "touchstart",
-    event => {
+canvas.addEventListener("touchend", event => {
+    event.preventDefault();
 
-        event.preventDefault();
+    if (!gameRunning) return;
 
-        const touch =
-            event.changedTouches[0];
+    const touch = event.changedTouches[0];
+    const deltaX = touch.clientX - touchStartX;
+    const deltaY = touch.clientY - touchStartY;
+    const minimumSwipe = 18;
 
-        touchStartX =
-            touch.clientX;
-
-        touchStartY =
-            touch.clientY;
-    },
-    {
-        passive: false
-    }
-);
-
-canvas.addEventListener(
-    "touchmove",
-    event => event.preventDefault(),
-    {
-        passive: false
-    }
-);
-
-canvas.addEventListener(
-    "touchend",
-    event => {
-
-        event.preventDefault();
-
-        if (!gameRunning) {
-            return;
-        }
-
-        const touch =
-            event.changedTouches[0];
-
-        const deltaX =
-            touch.clientX - touchStartX;
-
-        const deltaY =
-            touch.clientY - touchStartY;
-
-        const minimumSwipe = 18;
-
-        if (
-            Math.max(
-                Math.abs(deltaX),
-                Math.abs(deltaY)
-            ) >= minimumSwipe
-        ) {
-
-            if (
-                Math.abs(deltaX) >
-                Math.abs(deltaY)
-            ) {
-                requestDirection(
-                    deltaX > 0
-                        ? {
-                            x: CELL_SIZE,
-                            y: 0
-                        }
-                        : {
-                            x: -CELL_SIZE,
-                            y: 0
-                        }
-                );
-            } else {
-                requestDirection(
-                    deltaY > 0
-                        ? {
-                            x: 0,
-                            y: CELL_SIZE
-                        }
-                        : {
-                            x: 0,
-                            y: -CELL_SIZE
-                        }
-                );
-            }
-
-            return;
-        }
-
-        const rect =
-            canvas.getBoundingClientRect();
-
-        const x =
-            touch.clientX -
-            rect.left -
-            rect.width / 2;
-
-        const y =
-            touch.clientY -
-            rect.top -
-            rect.height / 2;
-
-        if (
-            Math.abs(x) >
-            Math.abs(y)
-        ) {
-            requestDirection(
-                x > 0
-                    ? {
-                        x: CELL_SIZE,
-                        y: 0
-                    }
-                    : {
-                        x: -CELL_SIZE,
-                        y: 0
-                    }
-            );
+    if (Math.max(Math.abs(deltaX), Math.abs(deltaY)) >= minimumSwipe) {
+        if (Math.abs(deltaX) > Math.abs(deltaY)) {
+            requestDirection(deltaX > 0
+                ? { x: CELL_SIZE, y: 0 }
+                : { x: -CELL_SIZE, y: 0 });
         } else {
-            requestDirection(
-                y > 0
-                    ? {
-                        x: 0,
-                        y: CELL_SIZE
-                    }
-                    : {
-                        x: 0,
-                        y: -CELL_SIZE
-                    }
-            );
+            requestDirection(deltaY > 0
+                ? { x: 0, y: CELL_SIZE }
+                : { x: 0, y: -CELL_SIZE });
         }
-    },
-    {
-        passive: false
+        return;
     }
-);
 
+    const rect = canvas.getBoundingClientRect();
+    const x = touch.clientX - rect.left - rect.width / 2;
+    const y = touch.clientY - rect.top - rect.height / 2;
 
-/*
- * ============================================================
- * START GAME
- * ============================================================
- */
+    if (Math.abs(x) > Math.abs(y)) {
+        requestDirection(x > 0
+            ? { x: CELL_SIZE, y: 0 }
+            : { x: -CELL_SIZE, y: 0 });
+    } else {
+        requestDirection(y > 0
+            ? { x: 0, y: CELL_SIZE }
+            : { x: 0, y: -CELL_SIZE });
+    }
+}, { passive: false });
 
-function startGame() {
+async function startGame() {
+    if (gameRunning || countdownRunning) return;
+
+    getAudioContext();
 
     if (loopTimer !== null) {
-
         clearTimeout(loopTimer);
         loopTimer = null;
     }
 
     gameSpeed = selectedSpeed;
-
-    snake = [
-        {
-            x: 200,
-            y: 200
-        }
-    ];
-
-    direction = {
-        x: CELL_SIZE,
-        y: 0
-    };
-
-    nextDirection = {
-        ...direction
-    };
-
+    snake = [{ x: 200, y: 200 }];
+    direction = { x: CELL_SIZE, y: 0 };
+    nextDirection = { ...direction };
     directionChangedThisTick = false;
-
     score = 0;
-    gameRunning = true;
-
     food = createFood();
 
     speedDownButton.disabled = true;
     speedUpButton.disabled = true;
-
     startButton.disabled = true;
-    startButton.textContent = "RUNNING";
-
-    statusMessage.textContent =
-        "Use Arrow Keys, swipe, or tap the game area to steer.";
+    startButton.textContent = "READY";
 
     updateScore();
     drawGame();
+
+    await runCountdown();
+
+    gameRunning = true;
+    startButton.textContent = "RUNNING";
+    statusMessage.textContent =
+        "Use Arrow Keys, swipe, or tap the game area to steer.";
+
+    playStartSound();
+    updateScore();
     scheduleNextTick();
 }
 
-
-/*
- * ============================================================
- * CREATE FOOD
- * ============================================================
- */
-
 function createFood() {
-
     const freeCells = [];
 
-    for (
-        let row = 0;
-        row < rows;
-        row++
-    ) {
-        for (
-            let column = 0;
-            column < columns;
-            column++
-        ) {
-
+    for (let row = 0; row < rows; row++) {
+        for (let column = 0; column < columns; column++) {
             const candidate = {
                 x: column * CELL_SIZE,
                 y: row * CELL_SIZE
             };
 
-            const cellIsOccupied =
-                snake.some(
-                    segment =>
-                        segment.x === candidate.x &&
-                        segment.y === candidate.y
-                );
+            const cellIsOccupied = snake.some(
+                segment =>
+                    segment.x === candidate.x &&
+                    segment.y === candidate.y
+            );
 
-            if (!cellIsOccupied) {
-                freeCells.push(candidate);
-            }
+            if (!cellIsOccupied) freeCells.push(candidate);
         }
     }
 
-    if (!freeCells.length) {
-        return null;
-    }
+    if (!freeCells.length) return null;
 
-    return freeCells[
-        Math.floor(
-            Math.random() *
-            freeCells.length
-        )
-    ];
+    return freeCells[Math.floor(Math.random() * freeCells.length)];
 }
-
-
-/*
- * ============================================================
- * SCORE DISPLAY
- * ============================================================
- */
 
 function updateScore() {
-
-    const displayedSpeed =
-        gameRunning
-            ? gameSpeed
-            : selectedSpeed;
-
-    scoreText.textContent =
-        `Eaten: ${score} | Speed: ${displayedSpeed}`;
+    updateHighScoreIndicator();
 }
 
-
-/*
- * ============================================================
- * GAME LOOP
- * ============================================================
- */
-
 function scheduleNextTick() {
-
-    loopTimer = setTimeout(
-        gameLoop,
-        SPEED_DELAYS[gameSpeed]
-    );
+    loopTimer = setTimeout(gameLoop, SPEED_DELAYS[gameSpeed]);
 }
 
 function gameLoop() {
-
     loopTimer = null;
-
-    if (!gameRunning) {
-        return;
-    }
+    if (!gameRunning) return;
 
     direction = nextDirection;
     directionChangedThisTick = false;
@@ -1019,20 +910,15 @@ function gameLoop() {
         head.x === food.x &&
         head.y === food.y;
 
-    const bodyToCheck =
-        willEat
-            ? snake
-            : snake.slice(0, -1);
+    const bodyToCheck = willEat ? snake : snake.slice(0, -1);
 
-    const hitsSnake =
-        bodyToCheck.some(
-            segment =>
-                segment.x === head.x &&
-                segment.y === head.y
-        );
+    const hitsSnake = bodyToCheck.some(
+        segment =>
+            segment.x === head.x &&
+            segment.y === head.y
+    );
 
     if (hitsWall || hitsSnake) {
-
         endGame(false);
         return;
     }
@@ -1040,20 +926,16 @@ function gameLoop() {
     snake.unshift(head);
 
     if (willEat) {
-
         score++;
+        playEatSound();
         food = createFood();
-
         updateScore();
 
         if (!food) {
-
             endGame(true);
             return;
         }
-
     } else {
-
         snake.pop();
     }
 
@@ -1061,194 +943,116 @@ function gameLoop() {
     scheduleNextTick();
 }
 
-
-/*
- * ============================================================
- * DRAW GAME
- * ============================================================
- */
-
 function drawGame() {
-
     ctx.fillStyle = "black";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    ctx.fillRect(
-        0,
-        0,
-        canvas.width,
-        canvas.height
-    );
-
-    ctx.fillStyle = "green";
-
+    ctx.save();
+    ctx.shadowColor = "#39ff14";
+    ctx.shadowBlur = 12;
+    ctx.fillStyle = "#39ff14";
     snake.forEach(segment => {
-
-        ctx.fillRect(
-            segment.x,
-            segment.y,
-            CELL_SIZE,
-            CELL_SIZE
-        );
+        ctx.fillRect(segment.x + 1, segment.y + 1, CELL_SIZE - 2, CELL_SIZE - 2);
     });
+    ctx.restore();
 
     if (food) {
+        const pulse = 0.78 + (Math.sin(performance.now() / 150) + 1) * 0.11;
+        const size = CELL_SIZE * pulse;
+        const offset = (CELL_SIZE - size) / 2;
 
-        ctx.fillStyle = "red";
-
-        ctx.fillRect(
-            food.x,
-            food.y,
-            CELL_SIZE,
-            CELL_SIZE
-        );
+        ctx.save();
+        ctx.shadowColor = "#ff2aa8";
+        ctx.shadowBlur = 16;
+        ctx.fillStyle = "#ff2aa8";
+        ctx.fillRect(food.x + offset, food.y + offset, size, size);
+        ctx.restore();
     }
 }
 
 
-/*
- * ============================================================
- * END GAME
- * ============================================================
- */
+function animateVisualEffects() {
+    if (gameRunning) {
+        drawGame();
+    }
+    requestAnimationFrame(animateVisualEffects);
+}
 
 async function endGame(won) {
-
     gameRunning = false;
 
     if (loopTimer !== null) {
-
         clearTimeout(loopTimer);
         loopTimer = null;
     }
 
     drawGame();
+    playGameOverSound();
 
-    ctx.fillStyle = "white";
-    ctx.font = "40px monospace";
-    ctx.textAlign = "center";
+    gameOverOverlay.querySelector("div").textContent = won ? "YOU WIN" : "GAME OVER";
+    gameOverOverlay.classList.remove("show");
+    void gameOverOverlay.offsetWidth;
+    gameOverOverlay.classList.add("show");
 
-    ctx.fillText(
-        won
-            ? "YOU WIN"
-            : "GAME OVER",
-        canvas.width / 2,
-        canvas.height / 2
-    );
+    setTimeout(() => {
+        if (!gameRunning && !countdownRunning) {
+            gameOverOverlay.classList.remove("show");
+            pressStartOverlay.classList.remove("hidden");
+        }
+    }, 3200);
 
     startButton.disabled = false;
-    startButton.textContent = "RESTART";
-
-    speedDownButton.disabled =
-        selectedSpeed === 1;
-
-    speedUpButton.disabled =
-        selectedSpeed === 10;
-
+    startButton.textContent = "START";
+    pressStartOverlay.classList.add("hidden");
+    speedDownButton.disabled = selectedSpeed === 1;
+    speedUpButton.disabled = selectedSpeed === 10;
     updateScore();
 
     statusMessage.textContent =
         "Choose a speed, then press SPACE or RESTART.";
 
-    if (score <= 1) {
-        return;
-    }
+    if (score <= 1) return;
 
     const enteredName = prompt(
         `Game over! Enter your name (maximum ${MAX_NAME_LENGTH} characters):`
     );
 
-    const cleanName =
-        cleanPlayerName(enteredName);
+    const cleanName = cleanPlayerName(enteredName);
 
     if (!cleanName) {
-
         statusMessage.textContent =
             "The score was not saved because no valid name was entered.";
-
         return;
     }
 
-    await saveOnlineHighScore(
-        cleanName,
-        score,
-        gameSpeed
-    );
+    await saveOnlineHighScore(cleanName, score, gameSpeed);
 }
 
-
-/*
- * ============================================================
- * CLEAN PLAYER NAME
- * ============================================================
- */
-
 function cleanPlayerName(name) {
-
-    if (!name) {
-        return "";
-    }
+    if (!name) return "";
 
     return String(name)
         .trim()
         .slice(0, MAX_NAME_LENGTH)
-        .replace(
-            /[^a-zA-Z0-9 _-]/g,
-            ""
-        )
+        .replace(/[^a-zA-Z0-9 _-]/g, "")
         .trim();
 }
 
-
-/*
- * ============================================================
- * SAVE SCORE TO SUPABASE
- * ============================================================
- */
-
-async function saveOnlineHighScore(
-    playerName,
-    playerScore,
-    speed
-) {
-
-    const cleanName =
-        cleanPlayerName(playerName);
-
-    const cleanScore =
-        Math.max(
-            0,
-            Math.floor(
-                Number(playerScore)
-            )
-        );
-
-    const cleanSpeed =
-        Math.max(
-            1,
-            Math.min(
-                10,
-                Math.floor(
-                    Number(speed)
-                )
-            )
-        );
+async function saveOnlineHighScore(playerName, playerScore, speed) {
+    const cleanName = cleanPlayerName(playerName);
+    const cleanScore = Math.max(0, Math.floor(Number(playerScore)));
+    const cleanSpeed = Math.max(1, Math.min(10, Math.floor(Number(speed))));
 
     if (!cleanName) {
-
         statusMessage.textContent =
             "The score was not saved because the name is invalid.";
-
         return;
     }
 
-    statusMessage.textContent =
-        "Saving high score online...";
+    statusMessage.textContent = "Saving high score online...";
 
     try {
-
-        const {
-            error
-        } = await database
+        const { error } = await database
             .from("highscores")
             .insert({
                 player_name: cleanName,
@@ -1256,407 +1060,153 @@ async function saveOnlineHighScore(
                 speed: cleanSpeed
             });
 
-        if (error) {
-            throw error;
-        }
+        if (error) throw error;
 
         await loadOnlineHighScores(false);
 
         statusMessage.textContent =
             "High score saved online. All players can now see it.";
-
     } catch (error) {
-
-        console.error(
-            "Saving the high score failed:",
-            error
-        );
-
+        console.error("Saving the high score failed:", error);
         statusMessage.textContent =
             "The high score could not be saved online.";
     }
 }
 
-
-/*
- * ============================================================
- * LOAD SCORES FROM SUPABASE
- * ============================================================
- */
-
-async function loadOnlineHighScores(
-    showLoadingMessage = true
-) {
-
+async function loadOnlineHighScores(showLoadingMessage = true) {
     if (showLoadingMessage) {
-
-        statusMessage.textContent =
-            "Loading online high scores...";
+        statusMessage.textContent = "Loading online high scores...";
     }
 
     try {
-
-        const {
-            data,
-            error
-        } = await database
+        const { data, error } = await database
             .from("highscores")
-            .select(
-                "player_name, score, speed, created_at"
-            )
-            .order(
-                "score",
-                {
-                    ascending: false
-                }
-            )
-            .order(
-                "created_at",
-                {
-                    ascending: true
-                }
-            )
+            .select("player_name, score, speed, created_at")
+            .order("score", { ascending: false })
+            .order("created_at", { ascending: true })
             .limit(250);
 
-        if (error) {
-            throw error;
-        }
+        if (error) throw error;
 
-        onlineHighScores =
-            (data || []).map(
-                entry => ({
-                    name:
-                        entry.player_name,
+        onlineHighScores = (data || []).map(entry => ({
+            name: entry.player_name,
+            score: Number(entry.score),
+            speed: Number(entry.speed),
+            date: entry.created_at
+        }));
 
-                    score:
-                        Number(entry.score),
-
-                    speed:
-                        Number(entry.speed),
-
-                    date:
-                        entry.created_at
-                })
-            );
-
-        onlineHighScores =
-            keepBestScoresPerSpeed(
-                onlineHighScores
-            );
-
+        onlineHighScores = keepBestScoresPerSpeed(onlineHighScores);
         renderHighScores();
 
         if (showLoadingMessage) {
-
             statusMessage.textContent =
                 "Online high scores loaded. Set the speed, then press SPACE or START.";
         }
-
     } catch (error) {
-
-        console.error(
-            "Loading high scores failed:",
-            error
-        );
-
+        console.error("Loading high scores failed:", error);
         renderHighScores();
-
         statusMessage.textContent =
             "Online high scores could not be loaded. Check the internet connection.";
     }
 }
 
-
-/*
- * ============================================================
- * KEEP THE BEST 25 SCORES PER SPEED
- * ============================================================
- */
-
 function keepBestScoresPerSpeed(scores) {
-
     const result = [];
 
-    for (
-        let speed = 1;
-        speed <= 10;
-        speed++
-    ) {
+    for (let speed = 1; speed <= 10; speed++) {
+        const levelScores = scores
+            .filter(entry => Number(entry.speed) === speed)
+            .sort(
+                (a, b) =>
+                    b.score - a.score ||
+                    new Date(a.date) - new Date(b.date)
+            )
+            .slice(0, MAX_HIGH_SCORES_PER_SPEED);
 
-        const levelScores =
-            scores
-                .filter(
-                    entry =>
-                        Number(entry.speed) === speed
-                )
-                .sort(
-                    (a, b) =>
-                        b.score - a.score ||
-                        new Date(a.date) -
-                        new Date(b.date)
-                )
-                .slice(
-                    0,
-                    MAX_HIGH_SCORES_PER_SPEED
-                );
-
-        result.push(
-            ...levelScores
-        );
+        result.push(...levelScores);
     }
 
     return result;
 }
 
-
-/*
- * ============================================================
- * DISPLAY HIGH SCORES
- * ============================================================
- */
-
 function renderHighScores() {
+    const selectedScores = onlineHighScores
+        .filter(entry => Number(entry.speed) === selectedSpeed)
+        .sort(
+            (a, b) =>
+                b.score - a.score ||
+                new Date(a.date) - new Date(b.date)
+        )
+        .slice(0, MAX_HIGH_SCORES_PER_SPEED);
 
-    const selectedScores =
-        onlineHighScores
-            .filter(
-                entry =>
-                    Number(entry.speed) ===
-                    selectedSpeed
-            )
-            .sort(
-                (a, b) =>
-                    b.score - a.score ||
-                    new Date(a.date) -
-                    new Date(b.date)
-            )
-            .slice(
-                0,
-                MAX_HIGH_SCORES_PER_SPEED
-            );
-
-    highScoresTitle.textContent =
-        `Top 25 — Speed ${selectedSpeed}`;
-
+    highScoresTitle.textContent = `Top 25 — Speed ${selectedSpeed}`;
     highScoresBody.innerHTML = "";
 
     if (!selectedScores.length) {
-
-        const row =
-            document.createElement("tr");
-
-        const cell =
-            document.createElement("td");
+        const row = document.createElement("tr");
+        const cell = document.createElement("td");
 
         cell.colSpan = 5;
         cell.className = "empty-score";
-
         cell.textContent =
             `No online high scores for Speed ${selectedSpeed}.`;
 
         row.appendChild(cell);
         highScoresBody.appendChild(row);
-
         return;
     }
 
-    selectedScores.forEach(
-        (entry, index) => {
+    selectedScores.forEach((entry, index) => {
+        const date = new Date(entry.date);
 
-            const date =
-                new Date(entry.date);
-
-            const formattedDate =
-                Number.isNaN(
-                    date.getTime()
-                )
-                    ? String(
-                        entry.date || ""
-                    )
-                    : date.toLocaleString(
-                        "en-GB",
-                        {
-                            day: "2-digit",
-                            month: "2-digit",
-                            year: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit"
-                        }
-                    );
-
-            const row =
-                document.createElement("tr");
-
-            const values = [
-                index + 1,
-                entry.name,
-                entry.score,
-                entry.speed,
-                formattedDate
-            ];
-
-            values.forEach(value => {
-
-                const cell =
-                    document.createElement("td");
-
-                cell.textContent = value;
-
-                row.appendChild(cell);
+        const formattedDate = Number.isNaN(date.getTime())
+            ? String(entry.date || "")
+            : date.toLocaleString("en-GB", {
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric",
+                hour: "2-digit",
+                minute: "2-digit"
             });
 
-            highScoresBody.appendChild(row);
-        }
-    );
+        const row = document.createElement("tr");
+
+        const values = [
+            index + 1,
+            entry.name,
+            entry.score,
+            entry.speed,
+            formattedDate
+        ];
+
+        values.forEach(value => {
+            const cell = document.createElement("td");
+            cell.textContent = value;
+            row.appendChild(cell);
+        });
+
+        highScoresBody.appendChild(row);
+    });
+
+    updateTopScoreForSelectedSpeed();
 }
-
-
-/*
- * ============================================================
- * EXPORT ONLINE SCORES
- * ============================================================
- */
-
-function exportOnlineHighScores() {
-
-    const exportData =
-        onlineHighScores.map(
-            entry => ({
-                name: entry.name,
-                score: entry.score,
-                speed: entry.speed,
-                date: entry.date
-            })
-        );
-
-    const blob = new Blob(
-        [
-            JSON.stringify(
-                exportData,
-                null,
-                2
-            )
-        ],
-        {
-            type: "application/json"
-        }
-    );
-
-    const url =
-        URL.createObjectURL(blob);
-
-    const link =
-        document.createElement("a");
-
-    link.href = url;
-
-    link.download =
-        `snake-online-highscores-${new Date()
-            .toISOString()
-            .slice(0, 10)}.json`;
-
-    document.body.appendChild(link);
-
-    link.click();
-    link.remove();
-
-    setTimeout(
-        () => URL.revokeObjectURL(url),
-        1000
-    );
-
-    closeMenu();
-
-    statusMessage.textContent =
-        "The online high scores were exported.";
-}
-
-
-/*
- * ============================================================
- * START SCREEN
- * ============================================================
- */
 
 function drawStartScreen() {
-
     ctx.fillStyle = "black";
-
-    ctx.fillRect(
-        0,
-        0,
-        canvas.width,
-        canvas.height
-    );
-
-    ctx.fillStyle = "white";
-    ctx.font = "28px monospace";
-    ctx.textAlign = "center";
-
-    ctx.fillText(
-        "PRESS SPACE",
-        canvas.width / 2,
-        canvas.height / 2 - 12
-    );
-
-    ctx.font = "18px monospace";
-
-    ctx.fillText(
-        "OR TAP START",
-        canvas.width / 2,
-        canvas.height / 2 + 22
-    );
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    pressStartOverlay.classList.remove("hidden");
+    gameOverOverlay.classList.remove("show");
 }
 
-
-/*
- * ============================================================
- * PREVENT ACCIDENTAL MOBILE ZOOM
- * ============================================================
- */
-
-document.addEventListener("dblclick", event => {
-    event.preventDefault();
-}, { passive: false });
-
-let lastDocumentTouchEnd = 0;
-
-document.addEventListener("touchend", event => {
-    const now = Date.now();
-
-    if (now - lastDocumentTouchEnd < 300) {
-        event.preventDefault();
-    }
-
-    lastDocumentTouchEnd = now;
-}, { passive: false });
-
-document.addEventListener("gesturestart", event => {
-    event.preventDefault();
-}, { passive: false });
-
-
-/*
- * ============================================================
- * INITIALIZE GAME
- * ============================================================
- */
-
 async function initializeGame() {
-
-    footerVersion.textContent = `${APP_NAME} v${APP_VERSION}`;
-    footerCopyright.textContent = APP_COPYRIGHT;
     setSelectedSpeed(5);
-
     drawStartScreen();
-
     renderHighScores();
-
     await loadOnlineHighScores(true);
 }
 
 initializeGame();
-
+requestAnimationFrame(animateVisualEffects);
 </script>
 
 </body>
