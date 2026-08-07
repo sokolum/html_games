@@ -1,1 +1,9 @@
-
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "html-games",
+  "compatibility_date": "2026-08-07",
+  "assets": {
+    "directory": ".",
+    "html_handling": "auto-trailing-slash"
+  }
+}
