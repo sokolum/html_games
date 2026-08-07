@@ -191,8 +191,8 @@
 
     .historyRow{
       display:grid;
-      grid-template-columns:24px 1fr 44px 39px;
-      gap:5px;
+      grid-template-columns:24px minmax(0,1fr) 44px;
+      gap:6px;
       align-items:center;
       padding:7px;
       border-radius:9px;
@@ -201,11 +201,41 @@
       color:var(--muted);
     }
 
-    .historyRow strong{
-      color:var(--text);
+    .historyPlayers{
+      min-width:0;
+      line-height:1.25;
+    }
+
+    .historyMatchup{
+      display:block;
       white-space:nowrap;
       overflow:hidden;
       text-overflow:ellipsis;
+    }
+
+    .historyDate{
+      display:block;
+      margin-top:2px;
+      color:rgba(255,255,255,.42);
+      font-size:9px;
+      white-space:nowrap;
+    }
+
+    .historyScore{
+      color:var(--text);
+      font-weight:900;
+      text-align:right;
+    }
+
+    .winnerMark{
+      text-decoration:underline;
+      text-underline-offset:2px;
+    }
+
+    .versus{
+      color:var(--muted);
+      margin:0 3px;
+      font-size:9px;
     }
 
     .sideLeft{
@@ -839,7 +869,7 @@
 ========================================================= */
 
 /* VERSION */
-const PONG_DUO_VERSION = "2.0.8";
+const PONG_DUO_VERSION = "2.0.9";
 
 /* GAME SETTINGS */
 const WINNING_SCORE = 3;
@@ -1192,6 +1222,8 @@ function saveLocalHistory(entry){
 function normalizeOnlineWinner(w){
   return{
     name:w.player_name,
+    leftPlayer:w.left_player || (w.side==="Left" ? w.player_name : ""),
+    rightPlayer:w.right_player || (w.side==="Right" ? w.player_name : ""),
     level:Number(w.level),
     side:w.side,
     winnerScore:Number(w.winner_score),
@@ -1214,7 +1246,7 @@ async function fetchOnlineHistory(level){
     SUPABASE_URL+
     "/rest/v1/"+
     PONG_HIGHSCORE_TABLE+
-    "?select=player_name,level,side,winner_score,loser_score,created_at"+
+    "?select=player_name,left_player,right_player,level,side,winner_score,loser_score,created_at"+
     "&level=eq."+encodeURIComponent(level)+
     "&order=created_at.desc"+
     "&limit=25";
@@ -1231,6 +1263,8 @@ async function fetchOnlineHistory(level){
 async function saveOnlineWinner(entry){
   const payload={
     player_name:entry.name,
+    left_player:entry.leftPlayer,
+    right_player:entry.rightPlayer,
     level:Number(entry.level),
     side:entry.side,
     winner_score:Number(entry.winnerScore),
@@ -1282,17 +1316,18 @@ async function renderWinnerData(){
 
   if(history.length){
     const winner=history[0];
-    const sideClass=winner.side==="Left"?"sideLeft":"sideRight";
 
     currentWinner.textContent=winner.name;
 
+    const leftName=winner.leftPlayer || "—";
+    const rightName=winner.rightPlayer || "—";
+
     currentWinnerMeta.innerHTML=
-      '<span class="'+sideClass+'">'+
-      winner.side+
-      "</span> player · "+
-      winner.winnerScore+
-      "-"+
-      winner.loserScore;
+      '<span class="sideLeft">'+escapeHtml(leftName)+'</span>'+
+      ' vs '+
+      '<span class="sideRight">'+escapeHtml(rightName)+'</span>'+
+      ' · '+winner.winnerScore+"-"+winner.loserScore+
+      ' · '+formatHighscoreDate(winner.timestamp);
   }else{
     currentWinner.textContent="No winner yet";
     currentWinnerMeta.textContent="Play the first match";
@@ -1306,9 +1341,8 @@ async function renderWinnerData(){
     row.className="historyRow";
     row.innerHTML=
       "<span>–</span>"+
-      "<strong>No results yet</strong>"+
-      "<span>–</span>"+
-      "<span>–</span>";
+      '<div class="historyPlayers"><span class="historyMatchup">No results yet</span></div>'+
+      '<span class="historyScore">–</span>';
 
     historyList.appendChild(row);
     return;
@@ -1320,11 +1354,22 @@ async function renderWinnerData(){
 
     const sideClass=winner.side==="Left"?"sideLeft":"sideRight";
 
+    const leftName=winner.leftPlayer || "—";
+    const rightName=winner.rightPlayer || "—";
+    const leftWinnerClass=winner.side==="Left" ? " winnerMark" : "";
+    const rightWinnerClass=winner.side==="Right" ? " winnerMark" : "";
+
     row.innerHTML=
       "<span>"+(index+1)+"</span>"+
-      "<strong>"+escapeHtml(winner.name)+"</strong>"+
-      "<span>"+winner.winnerScore+"-"+winner.loserScore+"</span>"+
-      '<span class="'+sideClass+'">'+winner.side+"</span>";
+      '<div class="historyPlayers">'+
+        '<span class="historyMatchup">'+
+          '<span class="sideLeft'+leftWinnerClass+'">'+escapeHtml(leftName)+'</span>'+
+          '<span class="versus">vs</span>'+
+          '<span class="sideRight'+rightWinnerClass+'">'+escapeHtml(rightName)+'</span>'+
+        '</span>'+
+        '<span class="historyDate">'+formatHighscoreDate(winner.timestamp)+'</span>'+
+      '</div>'+
+      '<span class="historyScore">'+winner.winnerScore+"-"+winner.loserScore+"</span>";
 
     historyList.appendChild(row);
   });
@@ -1341,6 +1386,22 @@ function escapeHtml(s){
       "'":"&#039;"
     }[m])
   );
+}
+
+function formatHighscoreDate(value){
+  if(!value)return "—";
+
+  const date=new Date(value);
+
+  if(Number.isNaN(date.getTime()))return "—";
+
+  return new Intl.DateTimeFormat("en-GB",{
+    day:"2-digit",
+    month:"2-digit",
+    year:"numeric",
+    hour:"2-digit",
+    minute:"2-digit"
+  }).format(date);
 }
 
 function resize(){
@@ -1764,6 +1825,8 @@ async function finishGame(side){
 
   const entry={
     name:winnerName,
+    leftPlayer:playerNames.left,
+    rightPlayer:playerNames.right,
     level:selectedLevel,
     side:side==="left"?"Left":"Right",
     winnerScore:score[side],
