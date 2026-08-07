@@ -869,7 +869,7 @@
 ========================================================= */
 
 /* VERSION */
-const PONG_DUO_VERSION = "2.0.9";
+const PONG_DUO_VERSION = "2.0.10";
 
 /* GAME SETTINGS */
 const WINNING_SCORE = 3;
@@ -1321,12 +1321,15 @@ async function renderWinnerData(){
 
     const leftName=winner.leftPlayer || "—";
     const rightName=winner.rightPlayer || "—";
+    const leftScore=winner.side==="Left" ? winner.winnerScore : winner.loserScore;
+    const rightScore=winner.side==="Right" ? winner.winnerScore : winner.loserScore;
 
     currentWinnerMeta.innerHTML=
       '<span class="sideLeft">'+escapeHtml(leftName)+'</span>'+
-      ' vs '+
+      ' '+leftScore+
+      ' - '+
+      rightScore+' '+
       '<span class="sideRight">'+escapeHtml(rightName)+'</span>'+
-      ' · '+winner.winnerScore+"-"+winner.loserScore+
       ' · '+formatHighscoreDate(winner.timestamp);
   }else{
     currentWinner.textContent="No winner yet";
@@ -1358,18 +1361,22 @@ async function renderWinnerData(){
     const rightName=winner.rightPlayer || "—";
     const leftWinnerClass=winner.side==="Left" ? " winnerMark" : "";
     const rightWinnerClass=winner.side==="Right" ? " winnerMark" : "";
+    const leftScore=winner.side==="Left" ? winner.winnerScore : winner.loserScore;
+    const rightScore=winner.side==="Right" ? winner.winnerScore : winner.loserScore;
 
     row.innerHTML=
       "<span>"+(index+1)+"</span>"+
       '<div class="historyPlayers">'+
         '<span class="historyMatchup">'+
           '<span class="sideLeft'+leftWinnerClass+'">'+escapeHtml(leftName)+'</span>'+
-          '<span class="versus">vs</span>'+
+          ' <strong>'+leftScore+'</strong>'+
+          '<span class="versus">-</span>'+
+          '<strong>'+rightScore+'</strong> '+
           '<span class="sideRight'+rightWinnerClass+'">'+escapeHtml(rightName)+'</span>'+
         '</span>'+
         '<span class="historyDate">'+formatHighscoreDate(winner.timestamp)+'</span>'+
       '</div>'+
-      '<span class="historyScore">'+winner.winnerScore+"-"+winner.loserScore+"</span>";
+      '<span class="historyScore">'+(winner.side==="Left"?"L":"R")+'</span>';
 
     historyList.appendChild(row);
   });
