@@ -18,29 +18,29 @@ canvas{display:block;width:100%;height:100%;background:#8fcf72}
 </head>
 <body>
 <canvas id="game"></canvas>
-<div id="hud"><div id="top"><span id="kills">KILLS 0</span><span id="time">LEVEL 1 · 45</span></div><div id="title">SURGE · PROTOTYPE v0.3</div><div id="message"></div></div>
+<div id="hud"><div id="top"><span id="kills">KILLS 0</span><span id="time">LEVEL 1 · 45</span></div><div id="title">SURGE · PROTOTYPE v0.4</div><div id="message"></div></div>
 <script>
 /* ============================================================
-   SURGE — PROTOTYPE v0.3
+   SURGE — PROTOTYPE v0.4
    GAME SETTINGS — change these values first when tuning gameplay
    ============================================================ */
 const SETTINGS={
-  GAME_VERSION:'0.3',
+  GAME_VERSION:'0.4',
   LEVEL_SECONDS:45,
   PLAYER_SPEED:720,
   FIRE_RATE:7.5,
   BULLET_SPEED:1050,
   BULLET_DAMAGE:1,
   ENEMY_HEALTH:2,
-  ENEMY_SPEED_MIN:115,
-  ENEMY_SPEED_MAX:185,
+  ENEMY_SPEED_MIN:55,
+  ENEMY_SPEED_MAX:90,
   SPAWN_INTERVAL_START:0.82,
   SPAWN_INTERVAL_END:0.28,
   MAX_ENEMIES:55,
-  ROAD_HORIZON_Y:0.27,
-  ROAD_TOP_WIDTH:0.44,
-  ROAD_BOTTOM_WIDTH:0.90,
-  CHARACTER_SCALE:1.30
+  ROAD_HORIZON_Y:0.02,
+  ROAD_TOP_WIDTH:0.035,
+  ROAD_BOTTOM_WIDTH:0.45,
+  CHARACTER_SCALE:1.42
 };
 
 const canvas=document.getElementById('game'),ctx=canvas.getContext('2d');
@@ -52,15 +52,15 @@ const player={x:.5,y:.84,targetX:.5};
 function resize(){dpr=Math.min(devicePixelRatio||1,2);W=innerWidth;H=innerHeight;canvas.width=W*dpr;canvas.height=H*dpr;canvas.style.width=W+'px';canvas.style.height=H+'px';ctx.setTransform(dpr,0,0,dpr,0,0)}
 addEventListener('resize',resize);resize();
 function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
-function roadWidthAt(y){const t=clamp((y-SETTINGS.ROAD_HORIZON_Y)/(.97-SETTINGS.ROAD_HORIZON_Y),0,1);return W*(SETTINGS.ROAD_TOP_WIDTH+(SETTINGS.ROAD_BOTTOM_WIDTH-SETTINGS.ROAD_TOP_WIDTH)*t)}
+function roadWidthAt(y){const t=clamp((y-SETTINGS.ROAD_HORIZON_Y)/(.97-SETTINGS.ROAD_HORIZON_Y),0,1);const perspective=Math.pow(t,1.08);return W*(SETTINGS.ROAD_TOP_WIDTH+(SETTINGS.ROAD_BOTTOM_WIDTH-SETTINGS.ROAD_TOP_WIDTH)*perspective)}
 function roadBounds(y){const rw=roadWidthAt(y);return[(W-rw)/2,(W+rw)/2]}
 function setTarget(clientX){const b=roadBounds(player.y);player.targetX=clamp((clientX-b[0])/(b[1]-b[0]),.05,.95)}
 addEventListener('pointerdown',e=>setTarget(e.clientX));addEventListener('pointermove',e=>{if(e.buttons||e.pointerType==='touch')setTarget(e.clientX)});
 addEventListener('keydown',e=>{if(e.key==='ArrowLeft'||e.key==='a')player.targetX-=.12;if(e.key==='ArrowRight'||e.key==='d')player.targetX+=.12;player.targetX=clamp(player.targetX,.05,.95)});
 
 function worldX(nx,y){const b=roadBounds(y);return b[0]+nx*(b[1]-b[0])}
-function scaleAt(y){const depth=clamp((y-SETTINGS.ROAD_HORIZON_Y)/(1-SETTINGS.ROAD_HORIZON_Y),0,1);return (.52+depth*.92)*SETTINGS.CHARACTER_SCALE}
-function spawnEnemy(){if(enemies.length>=SETTINGS.MAX_ENEMIES)return;const progress=elapsed/SETTINGS.LEVEL_SECONDS;const hp=SETTINGS.ENEMY_HEALTH+(progress>.65?1:0);enemies.push({x:.12+Math.random()*.76,y:SETTINGS.ROAD_HORIZON_Y+.005,hp,maxHp:hp,speed:SETTINGS.ENEMY_SPEED_MIN+Math.random()*(SETTINGS.ENEMY_SPEED_MAX-SETTINGS.ENEMY_SPEED_MIN),phase:Math.random()*6.28})}
+function scaleAt(y){const depth=clamp((y-SETTINGS.ROAD_HORIZON_Y)/(1-SETTINGS.ROAD_HORIZON_Y),0,1);return (.16+Math.pow(depth,1.20)*1.34)*SETTINGS.CHARACTER_SCALE}
+function spawnEnemy(){if(enemies.length>=SETTINGS.MAX_ENEMIES)return;const progress=elapsed/SETTINGS.LEVEL_SECONDS;const hp=SETTINGS.ENEMY_HEALTH+(progress>.65?1:0);enemies.push({x:.12+Math.random()*.76,y:SETTINGS.ROAD_HORIZON_Y+.008,hp,maxHp:hp,speed:SETTINGS.ENEMY_SPEED_MIN+Math.random()*(SETTINGS.ENEMY_SPEED_MAX-SETTINGS.ENEMY_SPEED_MIN),phase:Math.random()*6.28})}
 function shoot(){bullets.push({x:player.x,y:player.y-.045,speed:SETTINGS.BULLET_SPEED});for(let i=0;i<3;i++)particles.push({x:player.x,y:player.y-.055,vx:(Math.random()-.5)*.02,vy:-.12-Math.random()*.08,life:.09,max:.09,type:'flash'})}
 function burst(x,y){for(let i=0;i<10;i++)particles.push({x,y,vx:(Math.random()-.5)*.22,vy:(Math.random()-.5)*.18,life:.32+Math.random()*.2,max:.5,type:'hit'})}
 
