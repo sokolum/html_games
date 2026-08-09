@@ -16,23 +16,17 @@
   </script>
 
   <style>
-    :root{--bg:#05070d;--panel:#0b1120;--line:rgba(255,255,255,.13);--text:#f5f7ff;--muted:#9ca8bf;--cyan:#38d7ff;--pink:#ff5b8a;--purple:#8a5cff}
+    :root{--bg:#05070d;--panel:#0b1120;--line:rgba(255,255,255,.13);--text:#f5f7ff;--muted:#9ca8bf;--cyan:#38d7ff;--pink:#ff5b8a;--purple:#8a5cff;--amber:#ffbf32;--amberBright:#ffd76a}
     *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none}
     html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#03050a;color:var(--text);font-family:Arial,Helvetica,sans-serif;touch-action:none}
     body{position:fixed;inset:0}
     button,input{font:inherit}
     #app{width:100%;height:100%;padding:max(8px,env(safe-area-inset-top)) max(8px,env(safe-area-inset-right)) max(8px,env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left));background:radial-gradient(circle at 25% 30%,rgba(0,180,255,.08),transparent 30%),radial-gradient(circle at 80% 35%,rgba(255,0,100,.08),transparent 30%),linear-gradient(180deg,#05070d,#020307)}
-    #layout{width:100%;height:100%;display:grid;grid-template-columns:170px 300px minmax(420px,1fr);gap:10px}
+    #layout{width:100%;height:100%;display:grid;grid-template-columns:300px minmax(420px,1fr);gap:10px}
     .panel{border:1px solid var(--line);border-radius:20px;background:linear-gradient(180deg,rgba(12,18,32,.96),rgba(7,11,20,.96));box-shadow:0 24px 70px rgba(0,0,0,.45);overflow:hidden}
     .column{padding:14px;display:flex;flex-direction:column;min-height:0}
     .title-small{text-align:center;font-weight:900;font-size:19px;letter-spacing:.04em}
     .subtitle-small{text-align:center;color:var(--muted);font-size:11px;margin-top:4px;line-height:1.35}
-    #levelGrid{display:grid;grid-template-columns:1fr;grid-template-rows:repeat(10,minmax(0,1fr));gap:5px;margin-top:10px;overflow:hidden;flex:1;min-height:0}
-    .levelBtn{min-height:0;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.035);color:var(--text);font-weight:800;cursor:pointer;display:grid;grid-template-columns:38px 1fr;align-items:center;text-align:left;padding:5px 10px}
-    .levelBtn span{font-size:20px;line-height:1;text-align:center}
-    .levelBtn small{color:var(--muted);font-size:10px}
-    .levelBtn.active{background:linear-gradient(135deg,var(--cyan),var(--purple));color:#061019;border-color:transparent;box-shadow:0 0 20px rgba(56,215,255,.3)}
-    .levelBtn.active small{color:#07111d}
     #winnerCard{padding:12px;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.025);margin-top:12px}
     #winnerCardTitle,#historyTitle{font-size:11px;color:var(--muted);font-weight:800;letter-spacing:.07em;text-transform:uppercase}
     #currentWinner{margin-top:8px;font-size:18px;font-weight:900}
@@ -79,9 +73,11 @@
     #countdown{position:absolute;inset:0;z-index:10;display:none;place-items:center;background:rgba(2,4,9,.42);font-size:min(25vw,190px);font-weight:900;text-shadow:0 0 35px rgba(255,255,255,.75);pointer-events:none}
     #countdown.show{display:grid}
     #waitingBanner{display:none!important}
-    #bottomControls{position:absolute;left:16px;right:16px;bottom:13px;display:flex;justify-content:center;gap:9px;z-index:50}
+    #bottomControls{position:absolute;left:16px;right:16px;bottom:13px;display:flex;justify-content:center;align-items:center;gap:12px;z-index:50}
     #bottomControls button{pointer-events:auto;border:1px solid var(--line);border-radius:999px;padding:9px 16px;background:rgba(10,15,27,.84);color:var(--text);font-weight:800;cursor:pointer}
-    #startButton{border-color:rgba(56,215,255,.55)!important;box-shadow:0 0 14px rgba(56,215,255,.12)}
+    #startButton{min-width:150px;padding:14px 30px!important;font-size:18px;font-weight:900!important;letter-spacing:.08em;text-transform:uppercase;color:#1d1300!important;background:linear-gradient(180deg,var(--amberBright),var(--amber))!important;border:1px solid rgba(255,221,122,.95)!important;box-shadow:0 0 10px rgba(255,191,50,.7),0 0 24px rgba(255,191,50,.45),0 0 42px rgba(255,165,0,.22);animation:startPulse 1.65s ease-in-out infinite}
+    #startButton:active{transform:scale(.97)}
+    @keyframes startPulse{0%,100%{box-shadow:0 0 8px rgba(255,191,50,.55),0 0 18px rgba(255,191,50,.32),0 0 32px rgba(255,165,0,.14);filter:brightness(.96)}50%{box-shadow:0 0 14px rgba(255,215,95,.95),0 0 32px rgba(255,191,50,.7),0 0 58px rgba(255,165,0,.36);filter:brightness(1.12)}}
     #resetPlayersButton{color:var(--muted)!important}
     #version{position:absolute;right:13px;bottom:13px;color:rgba(255,255,255,.35);font-size:10px;z-index:5}
     #playerEntry{position:absolute;z-index:200;inset:0;display:grid;place-items:center;background:rgba(2,4,9,.88);backdrop-filter:blur(10px);padding:20px}
@@ -103,7 +99,7 @@
     body,#app,#gamePanel{background:#000!important}
     #app.playing{padding:0!important}
     #app.playing #layout{display:block!important;width:100%!important;height:100%!important}
-    #app.playing #levelsColumn,#app.playing #scoresColumn{display:none!important}
+    #app.playing #scoresColumn{display:none!important}
     #app.playing #gamePanel{position:fixed!important;inset:0!important;width:100vw!important;height:100dvh!important;border:0!important;border-radius:0!important;z-index:100!important;background:#000!important}
     #app.playing #bottomControls,#app.playing #version{display:none!important}
     #app.playing #gameTitle,#app.playing #gameSubtitle{display:none!important}
@@ -115,28 +111,23 @@
     #app.playing.rally-state #waitingBanner,#app.playing.rally-state #backToMenuButton{display:none!important}
     #rotateNotice{display:none;position:fixed;z-index:9999;inset:0;background:#000!important;place-items:center;text-align:center;padding:28px;color:#fff!important;font-size:clamp(22px,6vw,38px);font-weight:900;letter-spacing:.04em}
     @media (orientation:portrait) and (max-width:900px){#rotateNotice{display:grid}}
-    @media (max-width:1050px){#layout{grid-template-columns:145px 245px minmax(390px,1fr);gap:7px}.column{padding:9px}.levelBtn{min-height:39px}.historyRow{padding:5px}}
-    @media (max-height:610px){#levelGrid{gap:3px;margin-top:6px}.levelBtn{min-height:0;padding:2px 7px}.levelBtn span{font-size:15px}.levelBtn small{font-size:8px}#winnerCard{margin-top:7px;padding:7px}#historyTitle{margin:7px 0 4px}.historyRow{padding:4px 5px}#scoreBar{padding-top:9px}.scoreNumber{font-size:36px}.playerHint{padding:8px;font-size:11px}#gameTitle .arcadeMain{font-size:48px}#gameTitle{margin-top:5px}}
+    @media (max-width:1050px){#layout{grid-template-columns:245px minmax(390px,1fr);gap:7px}.column{padding:9px}.historyRow{padding:5px}}
+    @media (max-height:610px){#winnerCard{margin-top:7px;padding:7px}#historyTitle{margin:7px 0 4px}.historyRow{padding:4px 5px}#scoreBar{padding-top:9px}.scoreNumber{font-size:36px}.playerHint{padding:8px;font-size:11px}#gameTitle .arcadeMain{font-size:48px}#gameTitle{margin-top:5px}#startButton{padding:11px 26px!important;font-size:16px}}
     @media (max-width:650px){.playerInputRow{grid-template-columns:1fr}}
   </style>
 </head>
 <body>
 <main id="app">
   <div id="layout">
-    <aside id="levelsColumn" class="panel column">
-      <div class="title-small">SPEED LEVEL</div>
-      <div class="subtitle-small"></div>
-      <div id="levelGrid"></div>
-    </aside>
     <aside id="scoresColumn" class="panel column">
       <div class="title-small">HIGHSCORERS</div>
       <div class="subtitle-small">Fewest bounces ranks highest</div>
       <section id="winnerCard">
-        <div id="winnerCardTitle">Best result · Level 5</div>
+        <div id="winnerCardTitle">Best result</div>
         <div id="currentWinner">No winner yet</div>
         <div id="currentWinnerMeta">Play the first match</div>
       </section>
-      <div id="historyTitle">Top 25 · Level 5</div>
+      <div id="historyTitle">Top 25</div>
       <div id="historyList"></div>
     </aside>
     <section id="gamePanel" class="panel">
@@ -188,14 +179,13 @@
 
 /* GAME SETTINGS */
 const WINNING_SCORE = 3;
-const DEFAULT_LEVEL = 5;
 const MAX_PLAYER_NAME_LENGTH = 10;
 
-const BASE_START_BALL_SPEED = 520;
-const BASE_MAX_BALL_SPEED = 3000;
-const BASE_SPEED_INCREASE = 1.075;
+// Fixed game speed: identical to the former Level 1 settings.
+const START_BALL_SPEED = 416;
+const MAX_BALL_SPEED = 2400;
+const SPEED_INCREASE = 1.063;
 const MAX_PHYSICS_STEP_PX = 8;
-
 const COUNTDOWN_STEP_MS = 700;
 
 /* SOUND SETTINGS */
@@ -205,17 +195,14 @@ const WALL_SOUND_FREQUENCY = 320;
 const PADDLE_SOUND_FREQUENCY = 520;
 const SOUND_DURATION_MS = 32;
 
-const LEVEL_SPEED_MULTIPLIERS = [0.8,1.00,1.20,1.40,1.60,1.80,1.90,2.00,2.10,2.50];
-const LEVEL_NAMES = ["Very Slow","Slow","Slower","Slightly Slow","Normal","Slightly Fast","Fast","Very Fast","Extreme","Insane"];
-
 /* DATABASE SETTINGS */
 const SUPABASE_URL = "https://wubibqwcctvrnyiyuobt.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_JUQpnazdqXlnuiflP3yg-w_iyEFhY7h";
 const PONG_HIGHSCORE_TABLE = "pong_highscores";
+const HIGHSCORE_LEVEL = 1; // Legacy database compatibility. Levels are no longer selectable.
 
 /* LOCAL STORAGE KEYS */
 const PLAYER_STORAGE_KEY = "pongDuoPlayers";
-const LEVEL_STORAGE_KEY = "pongDuelSelectedLevel";
 const HISTORY_STORAGE_KEY = "pongDuelWinnerHistory";
 
 /* =========================================================
@@ -229,7 +216,6 @@ const gamePanel=document.getElementById("gamePanel");
 const startButton=document.getElementById("startButton");
 const resetPlayersButton=document.getElementById("resetPlayersButton");
 const backToMenuButton=document.getElementById("backToMenuButton");
-const levelGrid=document.getElementById("levelGrid");
 const scoreLeftEl=document.getElementById("scoreLeft");
 const scoreRightEl=document.getElementById("scoreRight");
 const menuLeftName=document.getElementById("menuLeftName");
@@ -240,7 +226,6 @@ const currentWinnerMeta=document.getElementById("currentWinnerMeta");
 const historyTitle=document.getElementById("historyTitle");
 const historyList=document.getElementById("historyList");
 const countdownEl=document.getElementById("countdown");
-const waitingBanner=document.getElementById("waitingBanner");
 const leftTouchState=document.getElementById("leftTouchState");
 const rightTouchState=document.getElementById("rightTouchState");
 const leftPlayerHintTitle=document.getElementById("leftPlayerHintTitle");
@@ -256,20 +241,16 @@ leftPlayerInput.maxLength=MAX_PLAYER_NAME_LENGTH;
 rightPlayerInput.maxLength=MAX_PLAYER_NAME_LENGTH;
 
 let playerNames=loadPlayers();
-let selectedLevel=loadSelectedLevel();
 let width=0,height=0,dpr=1;
 let running=false,paused=false,gameOver=false,serving=false,lastTime=0;
 let waitingForPlayers=true,countdownActive=false,countdownTimer=null,countdownIndex=0;
 let rallyDirection=1;
 let bounceCount=0;
 let audioContext=null;
-let currentStartSpeed=getStartSpeed(selectedLevel);
-let currentMaxSpeed=getMaxSpeed(selectedLevel);
-let currentIncrease=getIncrease(selectedLevel);
 const score={left:0,right:0};
 const left={x:0,y:0,width:0,height:0};
 const right={x:0,y:0,width:0,height:0};
-const ball={x:0,y:0,radius:0,vx:0,vy:0,speed:currentStartSpeed};
+const ball={x:0,y:0,radius:0,vx:0,vy:0,speed:START_BALL_SPEED};
 const pointers=new Map();
 
 async function enterFullscreen(){const el=document.documentElement;try{if(document.fullscreenElement||document.webkitFullscreenElement)return;if(el.requestFullscreen)await el.requestFullscreen();else if(el.webkitRequestFullscreen)el.webkitRequestFullscreen()}catch(err){console.log("Fullscreen not available:",err)}}
@@ -287,22 +268,16 @@ function closePlayerEntry(){playerEntry.classList.add("hidden")}
 async function saveEnteredPlayersAndStart(){ensureAudio();const leftName=leftPlayerInput.value.trim().slice(0,MAX_PLAYER_NAME_LENGTH).toUpperCase();const rightName=rightPlayerInput.value.trim().slice(0,MAX_PLAYER_NAME_LENGTH).toUpperCase();if(!leftName){playerEntryError.textContent="Enter a name for the Left Player.";leftPlayerInput.focus();return}if(!rightName){playerEntryError.textContent="Enter a name for the Right Player.";rightPlayerInput.focus();return}playerNames={left:leftName,right:rightName};savePlayers();updatePlayerDisplay();closePlayerEntry();await enterFullscreen();prepareGame()}
 function resetPlayers(){playerNames={left:"",right:""};localStorage.removeItem(PLAYER_STORAGE_KEY);updatePlayerDisplay()}
 function setGameState(state){app.classList.remove("waiting-state","countdown-state","rally-state","rally-active","playMode");if(state==="menu"){app.classList.remove("playing");return}app.classList.add("playing");if(state==="waiting")app.classList.add("waiting-state");if(state==="countdown")app.classList.add("countdown-state");if(state==="rally")app.classList.add("rally-state")}
-function getStartSpeed(level){return BASE_START_BALL_SPEED*LEVEL_SPEED_MULTIPLIERS[level-1]}
-function getMaxSpeed(level){return BASE_MAX_BALL_SPEED*LEVEL_SPEED_MULTIPLIERS[level-1]}
-function getIncrease(level){return BASE_SPEED_INCREASE+(level-DEFAULT_LEVEL)*.003}
 function clamp(v,min,max){return Math.max(min,Math.min(max,v))}
-function loadSelectedLevel(){const n=Number(localStorage.getItem(LEVEL_STORAGE_KEY));return Number.isInteger(n)&&n>=1&&n<=10?n:DEFAULT_LEVEL}
-function applyLevel(){if(running||countdownActive)return;currentStartSpeed=getStartSpeed(selectedLevel);currentMaxSpeed=getMaxSpeed(selectedLevel);currentIncrease=getIncrease(selectedLevel);ball.speed=currentStartSpeed;localStorage.setItem(LEVEL_STORAGE_KEY,String(selectedLevel));renderLevels();renderWinnerData()}
-function renderLevels(){levelGrid.innerHTML="";for(let level=1;level<=10;level++){const button=document.createElement("button");button.className="levelBtn"+(level===selectedLevel?" active":"");button.innerHTML="<span>"+level+"</span><small>"+LEVEL_NAMES[level-1]+"</small>";button.onclick=()=>{if(!running&&!countdownActive){selectedLevel=level;applyLevel()}};levelGrid.appendChild(button)}}
 function loadLocalHistory(){try{const data=JSON.parse(localStorage.getItem(HISTORY_STORAGE_KEY)||"[]");return Array.isArray(data)?data:[]}catch{return[]}}
 function saveLocalHistory(entry){const history=loadLocalHistory();history.unshift(entry);localStorage.setItem(HISTORY_STORAGE_KEY,JSON.stringify(history.slice(0,250)))}
 function compareHighscores(a,b){const ab=Number.isFinite(Number(a.bounces))?Number(a.bounces):Number.POSITIVE_INFINITY;const bb=Number.isFinite(Number(b.bounces))?Number(b.bounces):Number.POSITIVE_INFINITY;if(ab!==bb)return ab-bb;return new Date(b.timestamp||0)-new Date(a.timestamp||0)}
-function normalizeOnlineWinner(w){return{name:w.player_name,leftPlayer:w.left_player||(w.side==="Left"?w.player_name:""),rightPlayer:w.right_player||(w.side==="Right"?w.player_name:""),level:Number(w.level),side:w.side,winnerScore:Number(w.winner_score),loserScore:Number(w.loser_score),bounces:w.bounces===null?null:Number(w.bounces),timestamp:w.created_at}}
+function normalizeOnlineWinner(w){return{name:w.player_name,leftPlayer:w.left_player||(w.side==="Left"?w.player_name:""),rightPlayer:w.right_player||(w.side==="Right"?w.player_name:""),side:w.side,winnerScore:Number(w.winner_score),loserScore:Number(w.loser_score),bounces:w.bounces===null?null:Number(w.bounces),timestamp:w.created_at}}
 function supabaseHeaders(extra={}){return{"apikey":SUPABASE_PUBLISHABLE_KEY,"Authorization":"Bearer "+SUPABASE_PUBLISHABLE_KEY,"Content-Type":"application/json",...extra}}
-async function fetchOnlineHistory(level){const url=SUPABASE_URL+"/rest/v1/"+PONG_HIGHSCORE_TABLE+"?select=player_name,left_player,right_player,level,side,winner_score,loser_score,bounces,created_at"+"&level=eq."+encodeURIComponent(level)+"&order=bounces.asc.nullslast,created_at.desc&limit=25";const response=await fetch(url,{headers:supabaseHeaders()});if(!response.ok)throw new Error("Highscore load failed: "+response.status);return(await response.json()).map(normalizeOnlineWinner)}
-async function saveOnlineWinner(entry){const payload={player_name:entry.name,left_player:entry.leftPlayer,right_player:entry.rightPlayer,level:Number(entry.level),side:entry.side,winner_score:Number(entry.winnerScore),loser_score:Number(entry.loserScore),bounces:Number(entry.bounces)};const response=await fetch(SUPABASE_URL+"/rest/v1/"+PONG_HIGHSCORE_TABLE,{method:"POST",headers:supabaseHeaders({"Prefer":"return=minimal"}),body:JSON.stringify(payload)});if(!response.ok)throw new Error("Highscore save failed: "+response.status+" "+await response.text())}
+async function fetchOnlineHistory(){const url=SUPABASE_URL+"/rest/v1/"+PONG_HIGHSCORE_TABLE+"?select=player_name,left_player,right_player,side,winner_score,loser_score,bounces,created_at"+"&level=eq."+HIGHSCORE_LEVEL+"&order=bounces.asc.nullslast,created_at.desc&limit=25";const response=await fetch(url,{headers:supabaseHeaders()});if(!response.ok)throw new Error("Highscore load failed: "+response.status);return(await response.json()).map(normalizeOnlineWinner)}
+async function saveOnlineWinner(entry){const payload={player_name:entry.name,left_player:entry.leftPlayer,right_player:entry.rightPlayer,level:HIGHSCORE_LEVEL,side:entry.side,winner_score:Number(entry.winnerScore),loser_score:Number(entry.loserScore),bounces:Number(entry.bounces)};const response=await fetch(SUPABASE_URL+"/rest/v1/"+PONG_HIGHSCORE_TABLE,{method:"POST",headers:supabaseHeaders({"Prefer":"return=minimal"}),body:JSON.stringify(payload)});if(!response.ok)throw new Error("Highscore save failed: "+response.status+" "+await response.text())}
 function bounceLabel(value){return Number.isFinite(Number(value))?Number(value)+" B":"— B"}
-async function renderWinnerData(){const requestedLevel=selectedLevel;winnerCardTitle.textContent="Best result · Level "+requestedLevel;historyTitle.textContent="Top 25 · Level "+requestedLevel;currentWinner.textContent="Loading...";currentWinnerMeta.textContent="Online highscores";historyList.innerHTML="";let history=[];try{history=await fetchOnlineHistory(requestedLevel)}catch(err){console.warn(err);history=loadLocalHistory().filter(x=>Number(x.level)===requestedLevel).sort(compareHighscores).slice(0,25)}if(requestedLevel!==selectedLevel)return;if(history.length){const winner=history[0];currentWinner.textContent=winner.name;const leftName=winner.leftPlayer||"—",rightName=winner.rightPlayer||"—";const leftScore=winner.side==="Left"?winner.winnerScore:winner.loserScore;const rightScore=winner.side==="Right"?winner.winnerScore:winner.loserScore;currentWinnerMeta.innerHTML='<span class="sideLeft">'+escapeHtml(leftName)+'</span> '+leftScore+' - '+rightScore+' <span class="sideRight">'+escapeHtml(rightName)+'</span>'+' · '+bounceLabel(winner.bounces)+' · '+formatHighscoreDate(winner.timestamp)}else{currentWinner.textContent="No winner yet";currentWinnerMeta.textContent="Play the first match"}historyList.innerHTML="";if(!history.length){const row=document.createElement("div");row.className="historyRow";row.innerHTML="<span>–</span><div class=\"historyPlayers\"><span class=\"historyMatchup\">No results yet</span></div><span class=\"historyScore\">–</span>";historyList.appendChild(row);return}history.forEach((winner,index)=>{const row=document.createElement("div");row.className="historyRow";const leftName=winner.leftPlayer||"—",rightName=winner.rightPlayer||"—";const leftWinnerClass=winner.side==="Left"?" winnerMark":"",rightWinnerClass=winner.side==="Right"?" winnerMark":"";const leftScore=winner.side==="Left"?winner.winnerScore:winner.loserScore;const rightScore=winner.side==="Right"?winner.winnerScore:winner.loserScore;row.innerHTML="<span>"+(index+1)+"</span>"+'<div class="historyPlayers"><span class="historyMatchup"><span class="sideLeft'+leftWinnerClass+'">'+escapeHtml(leftName)+'</span> <strong>'+leftScore+'</strong><span class="versus">-</span><strong>'+rightScore+'</strong> <span class="sideRight'+rightWinnerClass+'">'+escapeHtml(rightName)+'</span></span><span class="historyDate">'+formatHighscoreDate(winner.timestamp)+'</span></div><span class="historyScore">'+bounceLabel(winner.bounces)+'</span>';historyList.appendChild(row)})}
+async function renderWinnerData(){winnerCardTitle.textContent="Best result";historyTitle.textContent="Top 25";currentWinner.textContent="Loading...";currentWinnerMeta.textContent="Online highscores";historyList.innerHTML="";let history=[];try{history=await fetchOnlineHistory()}catch(err){console.warn(err);history=loadLocalHistory().filter(x=>Number(x.level||HIGHSCORE_LEVEL)===HIGHSCORE_LEVEL).sort(compareHighscores).slice(0,25)}if(history.length){const winner=history[0];currentWinner.textContent=winner.name;const leftName=winner.leftPlayer||"—",rightName=winner.rightPlayer||"—";const leftScore=winner.side==="Left"?winner.winnerScore:winner.loserScore;const rightScore=winner.side==="Right"?winner.winnerScore:winner.loserScore;currentWinnerMeta.innerHTML='<span class="sideLeft">'+escapeHtml(leftName)+'</span> '+leftScore+' - '+rightScore+' <span class="sideRight">'+escapeHtml(rightName)+'</span>'+' · '+bounceLabel(winner.bounces)+' · '+formatHighscoreDate(winner.timestamp)}else{currentWinner.textContent="No winner yet";currentWinnerMeta.textContent="Play the first match"}historyList.innerHTML="";if(!history.length){const row=document.createElement("div");row.className="historyRow";row.innerHTML="<span>–</span><div class=\"historyPlayers\"><span class=\"historyMatchup\">No results yet</span></div><span class=\"historyScore\">–</span>";historyList.appendChild(row);return}history.forEach((winner,index)=>{const row=document.createElement("div");row.className="historyRow";const leftName=winner.leftPlayer||"—",rightName=winner.rightPlayer||"—";const leftWinnerClass=winner.side==="Left"?" winnerMark":"",rightWinnerClass=winner.side==="Right"?" winnerMark":"";const leftScore=winner.side==="Left"?winner.winnerScore:winner.loserScore;const rightScore=winner.side==="Right"?winner.winnerScore:winner.loserScore;row.innerHTML="<span>"+(index+1)+"</span>"+'<div class="historyPlayers"><span class="historyMatchup"><span class="sideLeft'+leftWinnerClass+'">'+escapeHtml(leftName)+'</span> <strong>'+leftScore+'</strong><span class="versus">-</span><strong>'+rightScore+'</strong> <span class="sideRight'+rightWinnerClass+'">'+escapeHtml(rightName)+'</span></span><span class="historyDate">'+formatHighscoreDate(winner.timestamp)+'</span></div><span class="historyScore">'+bounceLabel(winner.bounces)+'</span>';historyList.appendChild(row)})}
 function escapeHtml(s){return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]))}
 function formatHighscoreDate(value){if(!value)return"—";const date=new Date(value);if(Number.isNaN(date.getTime()))return"—";return new Intl.DateTimeFormat("en-GB",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"}).format(date)}
 
@@ -320,17 +295,17 @@ canvas.addEventListener("pointermove",e=>{if(pointers.has(e.pointerId)){e.preven
 function beginCountdown(){if(running||countdownActive||gameOver)return;setGameState("countdown");countdownActive=true;countdownIndex=0;countdownEl.classList.add("show");runCountdownStep()}
 function runCountdownStep(){const values=["3","2","1"],{hasLeft,hasRight}=activeSides();if(!hasLeft||!hasRight){cancelCountdown();return}countdownEl.textContent=values[countdownIndex];if(countdownIndex===values.length-1){countdownTimer=setTimeout(()=>{countdownEl.classList.remove("show");countdownActive=false;startRally()},COUNTDOWN_STEP_MS);return}countdownIndex++;countdownTimer=setTimeout(runCountdownStep,COUNTDOWN_STEP_MS)}
 function cancelCountdown(){clearTimeout(countdownTimer);countdownTimer=null;countdownActive=false;countdownEl.classList.remove("show");setGameState("waiting")}
-function prepareGame(){applyLevel();rallyDirection=Math.random()<.5?-1:1;setGameState("waiting");score.left=0;score.right=0;bounceCount=0;updateScore();running=false;paused=false;gameOver=false;serving=false;waitingForPlayers=true;pointers.clear();centerPaddles();centerBall();updateTouchStatus();setTimeout(resize,0)}
-function startRally(){applyLevel();setGameState("rally");gameOver=false;paused=false;running=true;waitingForPlayers=false;serving=false;launchBall(rallyDirection)}
+function prepareGame(){ball.speed=START_BALL_SPEED;rallyDirection=Math.random()<.5?-1:1;setGameState("waiting");score.left=0;score.right=0;bounceCount=0;updateScore();running=false;paused=false;gameOver=false;serving=false;waitingForPlayers=true;pointers.clear();centerPaddles();centerBall();updateTouchStatus();setTimeout(resize,0)}
+function startRally(){setGameState("rally");gameOver=false;paused=false;running=true;waitingForPlayers=false;serving=false;launchBall(rallyDirection)}
 function returnToMenu(){clearTimeout(countdownTimer);countdownTimer=null;countdownActive=false;countdownEl.classList.remove("show");running=false;paused=false;gameOver=false;serving=false;waitingForPlayers=false;score.left=0;score.right=0;bounceCount=0;updateScore();pointers.clear();setGameState("menu");resize();centerBall();centerPaddles();updatePlayerDisplay()}
 function prepareNextRally(dir){running=false;serving=false;waitingForPlayers=true;rallyDirection=dir;pointers.clear();centerBall();setGameState("waiting");updateTouchStatus()}
-function launchBall(dir){const angle=-.52+Math.random()*1.04;ball.speed=currentStartSpeed;ball.vx=Math.cos(angle)*ball.speed*dir;ball.vy=Math.sin(angle)*ball.speed;serving=false}
+function launchBall(dir){const angle=-.52+Math.random()*1.04;ball.speed=START_BALL_SPEED;ball.vx=Math.cos(angle)*ball.speed*dir;ball.vy=Math.sin(angle)*ball.speed;serving=false}
 function update(dt){if(!running||paused||gameOver||serving)return;const maxTravel=Math.max(Math.abs(ball.vx),Math.abs(ball.vy))*dt;const steps=Math.max(1,Math.min(40,Math.ceil(maxTravel/MAX_PHYSICS_STEP_PX)));const stepDt=dt/steps;for(let i=0;i<steps&&running&&!gameOver;i++)updatePhysicsStep(stepDt)}
 function updatePhysicsStep(dt){ball.x+=ball.vx*dt;ball.y+=ball.vy*dt;if(ball.y-ball.radius<=0&&ball.vy<0){ball.y=ball.radius;ball.vy*=-1;registerBounce("wall")}if(ball.y+ball.radius>=height&&ball.vy>0){ball.y=height-ball.radius;ball.vy*=-1;registerBounce("wall")}collide(left,1);collide(right,-1);if(ball.x+ball.radius<0){score.right++;point("right")}else if(ball.x-ball.radius>width){score.left++;point("left")}}
-function collide(paddle,direction){const approaching=direction===1?ball.vx<0:ball.vx>0;if(!approaching)return;const overlapX=ball.x+ball.radius>=paddle.x&&ball.x-ball.radius<=paddle.x+paddle.width;const overlapY=ball.y+ball.radius>=paddle.y&&ball.y-ball.radius<=paddle.y+paddle.height;if(!overlapX||!overlapY)return;const relative=clamp((ball.y-(paddle.y+paddle.height/2))/(paddle.height/2),-1,1),angle=relative*Math.PI*.38;ball.speed=Math.min(currentMaxSpeed,Math.max(ball.speed,currentStartSpeed)*currentIncrease);ball.vx=Math.cos(angle)*ball.speed*direction;ball.vy=Math.sin(angle)*ball.speed;ball.x=direction===1?paddle.x+paddle.width+ball.radius:paddle.x-ball.radius;registerBounce("paddle")}
+function collide(paddle,direction){const approaching=direction===1?ball.vx<0:ball.vx>0;if(!approaching)return;const overlapX=ball.x+ball.radius>=paddle.x&&ball.x-ball.radius<=paddle.x+paddle.width;const overlapY=ball.y+ball.radius>=paddle.y&&ball.y-ball.radius<=paddle.y+paddle.height;if(!overlapX||!overlapY)return;const relative=clamp((ball.y-(paddle.y+paddle.height/2))/(paddle.height/2),-1,1),angle=relative*Math.PI*.38;ball.speed=Math.min(MAX_BALL_SPEED,Math.max(ball.speed,START_BALL_SPEED)*SPEED_INCREASE);ball.vx=Math.cos(angle)*ball.speed*direction;ball.vy=Math.sin(angle)*ball.speed;ball.x=direction===1?paddle.x+paddle.width+ball.radius:paddle.x-ball.radius;registerBounce("paddle")}
 function point(side){updateScore();if(score[side]>=WINNING_SCORE){running=false;gameOver=true;pointers.clear();finishGame(side)}else prepareNextRally(side==="left"?-1:1)}
 function updateScore(){scoreLeftEl.textContent=score.left;scoreRightEl.textContent=score.right}
-async function finishGame(side){const loserSide=side==="left"?"right":"left";const winnerName=side==="left"?playerNames.left:playerNames.right;const entry={name:winnerName,leftPlayer:playerNames.left,rightPlayer:playerNames.right,level:selectedLevel,side:side==="left"?"Left":"Right",winnerScore:score[side],loserScore:score[loserSide],bounces:bounceCount,timestamp:new Date().toISOString()};saveLocalHistory(entry);try{await saveOnlineWinner(entry)}catch(err){console.error("Could not save winner online:",err)}await renderWinnerData();await exitFullscreen();returnToMenu()}
+async function finishGame(side){const loserSide=side==="left"?"right":"left";const winnerName=side==="left"?playerNames.left:playerNames.right;const entry={name:winnerName,leftPlayer:playerNames.left,rightPlayer:playerNames.right,level:HIGHSCORE_LEVEL,side:side==="left"?"Left":"Right",winnerScore:score[side],loserScore:score[loserSide],bounces:bounceCount,timestamp:new Date().toISOString()};saveLocalHistory(entry);try{await saveOnlineWinner(entry)}catch(err){console.error("Could not save winner online:",err)}await renderWinnerData();await exitFullscreen();returnToMenu()}
 
 function draw(){ctx.clearRect(0,0,width,height);if(app.classList.contains("playing")){ctx.fillStyle="#000";ctx.fillRect(0,0,width,height)}else{const gradient=ctx.createLinearGradient(0,0,width,height);gradient.addColorStop(0,"#07101d");gradient.addColorStop(.5,"#080b14");gradient.addColorStop(1,"#120916");ctx.fillStyle=gradient;ctx.fillRect(0,0,width,height)}ctx.strokeStyle="rgba(255,255,255,.16)";ctx.lineWidth=2;ctx.setLineDash([12,16]);ctx.beginPath();ctx.moveTo(width/2,20);ctx.lineTo(width/2,height-20);ctx.stroke();ctx.setLineDash([]);drawPaddle(left,"#38d7ff");drawPaddle(right,"#ff5b8a");ctx.save();ctx.fillStyle="#fff";ctx.shadowColor="#fff";ctx.shadowBlur=20;ctx.beginPath();ctx.arc(ball.x,ball.y,ball.radius,0,Math.PI*2);ctx.fill();ctx.restore();if(app.classList.contains("playing")){ctx.save();ctx.font="900 14px Arial, sans-serif";ctx.textAlign="center";ctx.textBaseline="top";ctx.fillStyle="rgba(255,255,255,.72)";ctx.shadowColor="rgba(255,255,255,.35)";ctx.shadowBlur=8;ctx.fillText("BOUNCES: "+bounceCount,width/2,14);ctx.restore()}}
 function drawPaddle(paddle,color){ctx.save();ctx.fillStyle=color;ctx.shadowColor=color;ctx.shadowBlur=22;ctx.fillRect(paddle.x,paddle.y,paddle.width,paddle.height);ctx.restore()}
@@ -344,7 +319,7 @@ leftPlayerInput.addEventListener("keydown",e=>{if(e.key==="Enter")rightPlayerInp
 rightPlayerInput.addEventListener("keydown",e=>{if(e.key==="Enter")saveEnteredPlayersAndStart()});
 window.addEventListener("resize",resize);
 window.addEventListener("orientationchange",()=>setTimeout(resize,200));
-renderLevels();renderWinnerData();updatePlayerDisplay();resize();returnToMenu();requestAnimationFrame(loop);
+renderWinnerData();updatePlayerDisplay();resize();returnToMenu();requestAnimationFrame(loop);
 </script>
 </body>
 </html>
