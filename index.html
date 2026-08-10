@@ -6,26 +6,90 @@
   <meta name="theme-color" content="#05070d">
   <title>HTML Games</title>
   <style>
-    :root{--bg:#03050a;--panel:#0b1120;--line:rgba(255,255,255,.14);--text:#f5f7ff;--muted:#9ca8bf;--cyan:#38d7ff;--pink:#ff5b8a;--green:#63ff9b;--purple:#8a5cff;--amber:#ffc342}
+    :root{
+      --bg:#03050a;--panel:#0b1120;--line:rgba(255,255,255,.14);
+      --text:#f5f7ff;--muted:#9ca8bf;--cyan:#38d7ff;--pink:#ff5b8a;
+      --green:#63ff9b;--purple:#8a5cff
+    }
     *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
     html,body{margin:0;min-height:100%;background:#000;color:var(--text);font-family:Arial,Helvetica,sans-serif}
-    body{min-height:100dvh;display:flex;align-items:center;justify-content:center;padding:max(20px,env(safe-area-inset-top)) max(20px,env(safe-area-inset-right)) max(20px,env(safe-area-inset-bottom)) max(20px,env(safe-area-inset-left));background:radial-gradient(circle at 20% 25%,rgba(56,215,255,.10),transparent 28%),radial-gradient(circle at 80% 30%,rgba(255,91,138,.10),transparent 28%),radial-gradient(circle at 50% 85%,rgba(138,92,255,.08),transparent 32%),linear-gradient(180deg,#05070d,#020307 70%,#000)}
-    .wrap{width:min(1280px,100%)}.brand{text-align:center;margin-bottom:34px}.brand h1{margin:0;font-size:clamp(42px,7vw,84px);font-weight:900;letter-spacing:.14em;padding-left:.14em;text-transform:uppercase;text-shadow:0 0 7px rgba(255,255,255,.95),0 0 18px rgba(56,215,255,.7),0 0 36px rgba(56,215,255,.34)}.brand p{margin:12px 0 0;color:var(--muted);font-size:clamp(13px,2vw,17px);letter-spacing:.08em;text-transform:uppercase}
-    .games{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}.game{position:relative;min-height:300px;border:1px solid var(--line);border-radius:24px;padding:28px;text-decoration:none;color:var(--text);overflow:hidden;background:linear-gradient(180deg,rgba(12,18,32,.96),rgba(6,9,17,.97));box-shadow:0 26px 70px rgba(0,0,0,.42);transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease;display:flex;flex-direction:column;justify-content:space-between}.game:hover,.game:focus-visible{transform:translateY(-4px);outline:none}.game::before{content:"";position:absolute;inset:-30%;opacity:.16;filter:blur(12px);pointer-events:none}.snake::before{background:radial-gradient(circle,var(--green),transparent 58%)}.pong::before{background:radial-gradient(circle,var(--pink),transparent 58%)}.arena::before{background:radial-gradient(circle,var(--amber),transparent 58%)}.snake:hover{border-color:rgba(99,255,155,.65);box-shadow:0 26px 70px rgba(0,0,0,.42),0 0 28px rgba(99,255,155,.16)}.pong:hover{border-color:rgba(255,91,138,.65);box-shadow:0 26px 70px rgba(0,0,0,.42),0 0 28px rgba(255,91,138,.16)}.arena:hover{border-color:rgba(255,195,66,.7);box-shadow:0 26px 70px rgba(0,0,0,.42),0 0 28px rgba(255,195,66,.18)}
-    .top{position:relative;z-index:1}.eyebrow{color:var(--muted);font-size:12px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;margin-bottom:12px}.game h2{margin:0;font-size:clamp(30px,4vw,52px);font-weight:900;line-height:1;text-transform:uppercase;letter-spacing:.06em}.snake h2{color:var(--green);text-shadow:0 0 20px rgba(99,255,155,.35)}.pong h2{color:#fff;text-shadow:0 0 20px rgba(56,215,255,.35)}.arena h2{color:var(--amber);text-shadow:0 0 20px rgba(255,195,66,.35)}.duo{font-size:.52em;vertical-align:middle;color:var(--pink);letter-spacing:.12em}.arenaWord{display:block;font-size:.55em;color:var(--green);letter-spacing:.14em;margin-top:6px}.desc{position:relative;z-index:1;margin-top:18px;color:var(--muted);font-size:15px;line-height:1.5;max-width:95%}.play{position:relative;z-index:1;margin-top:28px;display:inline-flex;align-items:center;gap:10px;font-size:14px;font-weight:900;letter-spacing:.08em;text-transform:uppercase}.snake .play{color:var(--green)}.pong .play{color:var(--pink)}.arena .play{color:var(--amber)}.arrow{font-size:20px;transform:translateY(-1px)}.footer{text-align:center;margin-top:24px;color:rgba(255,255,255,.34);font-size:11px;letter-spacing:.08em;text-transform:uppercase}
-    @media(max-width:980px){.games{grid-template-columns:1fr 1fr}.arena{grid-column:1/-1}}
-    @media(max-width:760px){body{align-items:flex-start}.wrap{padding-top:10px}.games{grid-template-columns:1fr}.arena{grid-column:auto}.game{min-height:230px}}
+    body{
+      min-height:100dvh;display:flex;align-items:center;justify-content:center;
+      padding:max(20px,env(safe-area-inset-top)) max(20px,env(safe-area-inset-right))
+              max(20px,env(safe-area-inset-bottom)) max(20px,env(safe-area-inset-left));
+      background:
+        radial-gradient(circle at 20% 25%,rgba(56,215,255,.10),transparent 28%),
+        radial-gradient(circle at 80% 30%,rgba(255,91,138,.10),transparent 28%),
+        radial-gradient(circle at 50% 85%,rgba(138,92,255,.08),transparent 32%),
+        linear-gradient(180deg,#05070d,#020307 70%,#000)
+    }
+    .wrap{width:min(980px,100%)}
+    .brand{text-align:center;margin-bottom:34px}
+    .brand h1{
+      margin:0;font-size:clamp(42px,7vw,84px);font-weight:900;letter-spacing:.14em;
+      padding-left:.14em;text-transform:uppercase;
+      text-shadow:0 0 7px rgba(255,255,255,.95),0 0 18px rgba(56,215,255,.7),0 0 36px rgba(56,215,255,.34)
+    }
+    .brand p{margin:12px 0 0;color:var(--muted);font-size:clamp(13px,2vw,17px);letter-spacing:.08em;text-transform:uppercase}
+    .games{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}
+    .game{
+      position:relative;min-height:300px;border:1px solid var(--line);border-radius:24px;
+      padding:28px;text-decoration:none;color:var(--text);overflow:hidden;
+      background:linear-gradient(180deg,rgba(12,18,32,.96),rgba(6,9,17,.97));
+      box-shadow:0 26px 70px rgba(0,0,0,.42);
+      transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease;
+      display:flex;flex-direction:column;justify-content:space-between
+    }
+    .game:hover,.game:focus-visible{transform:translateY(-4px);outline:none}
+    .game::before{content:"";position:absolute;inset:-30%;opacity:.16;filter:blur(12px);pointer-events:none}
+    .snake::before{background:radial-gradient(circle,var(--green),transparent 58%)}
+    .pong::before{background:radial-gradient(circle,var(--pink),transparent 58%)}
+    .snake:hover{border-color:rgba(99,255,155,.65);box-shadow:0 26px 70px rgba(0,0,0,.42),0 0 28px rgba(99,255,155,.16)}
+    .pong:hover{border-color:rgba(255,91,138,.65);box-shadow:0 26px 70px rgba(0,0,0,.42),0 0 28px rgba(255,91,138,.16)}
+    .top{position:relative;z-index:1}
+    .eyebrow{color:var(--muted);font-size:12px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;margin-bottom:12px}
+    .game h2{margin:0;font-size:clamp(34px,5vw,58px);font-weight:900;line-height:1;text-transform:uppercase;letter-spacing:.06em}
+    .snake h2{color:var(--green);text-shadow:0 0 20px rgba(99,255,155,.35)}
+    .pong h2{color:#fff;text-shadow:0 0 20px rgba(56,215,255,.35)}
+    .duo{font-size:.52em;vertical-align:middle;color:var(--pink);letter-spacing:.12em}
+    .desc{position:relative;z-index:1;margin-top:18px;color:var(--muted);font-size:15px;line-height:1.5;max-width:90%}
+    .play{position:relative;z-index:1;margin-top:28px;display:inline-flex;align-items:center;gap:10px;font-size:14px;font-weight:900;letter-spacing:.08em;text-transform:uppercase}
+    .snake .play{color:var(--green)} .pong .play{color:var(--pink)}
+    .arrow{font-size:20px;transform:translateY(-1px)}
+    .footer{text-align:center;margin-top:24px;color:rgba(255,255,255,.34);font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+    @media(max-width:760px){
+      body{align-items:flex-start}
+      .wrap{padding-top:10px}
+      .games{grid-template-columns:1fr}
+      .game{min-height:230px}
+    }
   </style>
 </head>
 <body>
   <main class="wrap">
-    <header class="brand"><h1>HTML Games</h1><p>Select a game</p></header>
+    <header class="brand">
+      <h1>HTML Games</h1>
+      <p>Select a game</p>
+    </header>
     <section class="games" aria-label="Games">
-      <a class="game snake" href="/snake/"><div class="top"><div class="eyebrow">Classic Arcade</div><h2>Snake</h2><div class="desc">Classic Snake gameplay with online highscores.</div></div><div class="play">Play Snake <span class="arrow">→</span></div></a>
-      <a class="game pong" href="/pongduo/"><div class="top"><div class="eyebrow">Two Player</div><h2>Pong <span class="duo">DUO</span></h2><div class="desc">Two-player Pong. First to 3 points wins.</div></div><div class="play">Play Pong Duo <span class="arrow">→</span></div></a>
-      <a class="game arena" href="/snake-arena/"><div class="top"><div class="eyebrow">Arena Survival • v0.1</div><h2>Snake <span class="arenaWord">Arena</span></h2><div class="desc">Free-roaming snake survival against AI rivals. Grow, boost and dominate the arena.</div></div><div class="play">Play Snake Arena <span class="arrow">→</span></div></a>
+      <a class="game snake" href="/snake/">
+        <div class="top">
+          <div class="eyebrow">Classic Arcade</div>
+          <h2>Snake</h2>
+          <div class="desc">Classic Snake gameplay with online highscores.</div>
+        </div>
+        <div class="play">Play Snake <span class="arrow">→</span></div>
+      </a>
+      <a class="game pong" href="/pongduo/">
+        <div class="top">
+          <div class="eyebrow">Two Player</div>
+          <h2>Pong <span class="duo">DUO</span></h2>
+          <div class="desc">Two-player Pong. First to 3 points wins.</div>
+        </div>
+        <div class="play">Play Pong Duo <span class="arrow">→</span></div>
+      </a>
     </section>
-    <div class="footer">csanga.com</div>
+    <div class="footer">vixcaptum.com</div>
   </main>
 </body>
 </html>
