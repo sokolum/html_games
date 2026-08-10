@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#05070d">
+  <title>Snake Arena v0.1</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <main id="app">
+    <canvas id="game" aria-label="Snake Arena game"></canvas>
+
+    <section id="hud" class="hud hidden">
+      <div class="hudBlock"><span class="label">Score</span><strong id="score">0</strong></div>
+      <div class="hudBlock"><span class="label">Length</span><strong id="length">0</strong></div>
+      <div class="hudBlock"><span class="label">Kills</span><strong id="kills">0</strong></div>
+      <div class="hudBlock boostHud"><span class="label">Boost</span><div class="boostBar"><span id="boostFill"></span></div></div>
+    </section>
+
+    <section id="leaderboard" class="leaderboard hidden">
+      <div class="boardTitle">Arena</div>
+      <ol id="leaders"></ol>
+    </section>
+
+    <section id="menu" class="overlay">
+      <div class="panel heroPanel">
+        <div class="eyebrow">HTML Games • v0.1</div>
+        <h1>Snake <span>Arena</span></h1>
+        <p class="intro">Grow, survive and force rival snakes to crash into your body.</p>
+        <div class="controls">
+          <div><b>Desktop</b><span>Mouse or WASD / Arrow keys</span></div>
+          <div><b>Mobile</b><span>Drag anywhere to steer</span></div>
+          <div><b>Boost</b><span>Hold Space or the BOOST button</span></div>
+        </div>
+        <button id="startBtn" class="primary">START ARENA</button>
+        <a class="back" href="/">← Back to games</a>
+      </div>
+    </section>
+
+    <section id="gameOver" class="overlay hidden">
+      <div class="panel resultPanel">
+        <div class="eyebrow">Run ended</div>
+        <h2>Game Over</h2>
+        <div class="resultGrid">
+          <div><span>Score</span><strong id="finalScore">0</strong></div>
+          <div><span>Kills</span><strong id="finalKills">0</strong></div>
+          <div><span>Length</span><strong id="finalLength">0</strong></div>
+        </div>
+        <button id="restartBtn" class="primary">PLAY AGAIN</button>
+        <a class="back" href="/">← Back to games</a>
+      </div>
+    </section>
+
+    <button id="boostBtn" class="boostButton hidden" aria-label="Boost">BOOST</button>
+    <div id="rotateHint" class="rotateHint hidden">Rotate your device to landscape</div>
+  </main>
+  <script src="./game.js"></script>
+</body>
+</html>
