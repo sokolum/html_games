@@ -1,0 +1,14 @@
+{
+  "name": "html-games-services",
+  "version": "0.16.0",
+  "private": true,
+  "workspaces": [
+    "railway-server"
+  ],
+  "engines": {
+    "node": ">=20.9.0"
+  },
+  "scripts": {
+    "start": "npm --workspace railway-server start"
+  }
+}
