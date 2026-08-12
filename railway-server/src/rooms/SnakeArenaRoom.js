@@ -30,6 +30,7 @@ const SETTINGS = {
   killsPerExtraLife: 10,
   phaseDuration: 1.35,
   aiRespawnDelay: 1800,
+  spawnProtectionDuration: 3,
 };
 
 const COLORS = ["#ff5d7d", "#57d6ff", "#ffcf4d", "#b47cff", "#ff8e4f", "#49f5a6", "#f06cff", "#e9ff5e", "#72a4ff"];
@@ -231,7 +232,7 @@ export class SnakeArenaRoom extends Room {
       score: 0,
       kills: 0,
       extraLives: 0,
-      phaseTime: 0,
+      phaseTime: isHuman ? SETTINGS.spawnProtectionDuration : 0,
       boost: 100,
       boostRequested: false,
       pelletProgress: 0,
@@ -243,7 +244,7 @@ export class SnakeArenaRoom extends Room {
   }
 
   spawnAI() {
-    const point = this.randomWorldPoint(400);
+    const point = this.safeWorldPoint(400);
     const color = COLORS[Math.floor(Math.random() * COLORS.length)];
     const snake = this.makeSnake({
       x: point.x,
