@@ -1,6 +1,6 @@
 {
   "name": "snake-arena-realtime-server",
-  "version": "0.18.0",
+  "version": "0.19.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -14,5 +14,8 @@
     "@colyseus/tools": "^0.17.0",
     "colyseus": "^0.17.10",
     "express": "^4.21.2"
+  },
+  "devDependencies": {
+    "@colyseus/sdk": "^0.17.43"
   }
 }

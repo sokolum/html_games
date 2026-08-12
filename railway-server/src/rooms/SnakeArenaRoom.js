@@ -2,9 +2,10 @@ import { Room } from "colyseus";
 
 const ACTIVE_PLAYER_LIMIT = 4;
 const TOTAL_SNAKES = 19;
-const SNAPSHOT_HZ = 30;
-const SIMULATION_HZ = 30;
-const PELLET_SNAPSHOT_HZ = 5;
+const SNAPSHOT_HZ = 20;
+const SIMULATION_HZ = 60;
+const BODY_SNAPSHOT_HZ = 10;
+const PELLET_SNAPSHOT_HZ = 2;
 
 const SETTINGS = {
   worldWidth: 4200,
@@ -86,6 +87,7 @@ export class SnakeArenaRoom extends Room {
   nextSnakeId = 1;
   tick = 0;
   snapshotEvery = Math.max(1, Math.round(SIMULATION_HZ / SNAPSHOT_HZ));
+  bodySnapshotEvery = Math.max(1, Math.round(SIMULATION_HZ / BODY_SNAPSHOT_HZ));
   pelletSnapshotEvery = Math.max(1, Math.round(SIMULATION_HZ / PELLET_SNAPSHOT_HZ));
 
   messages = {
@@ -105,10 +107,10 @@ export class SnakeArenaRoom extends Room {
   };
 
   onCreate() {
-    this.setPatchRate(null);
     this.seedPellets();
     while (this.snakes.length < TOTAL_SNAKES) this.spawnAI();
     this.setSimulationInterval((deltaTime) => this.simulate(Math.min(deltaTime / 1000, 0.05)), 1000 / SIMULATION_HZ);
+    this.setPatchRate(null);
   }
 
   onJoin(client, options) {
@@ -551,34 +553,37 @@ export class SnakeArenaRoom extends Room {
     if (this.tick % this.snapshotEvery === 0) this.sendSnapshot();
   }
 
-  makeSnapshot(includePellets = true) {
+  makeSnapshot(includePellets = true, includeDetails = true) {
     return {
-      v: 2,
+      v: 3,
       t: this.tick,
       o: this.activeSessions.length,
       m: ACTIVE_PLAYER_LIMIT,
       s: this.snakes.map((snake) => ({
         i: snake.networkId,
-        u: snake.sessionId || "",
-        h: snake.isHuman,
-        n: snake.name,
-        c: [snake.color, snake.stripeColor, snake.glowColor],
         x: Math.round(snake.x),
         y: Math.round(snake.y),
         a: Number(snake.angle.toFixed(4)),
+        w: Math.round(snake.speed),
         v: snake.alive,
-        d: snake.desiredSegments,
-        q: snake.score,
-        k: snake.kills,
-        l: snake.extraLives,
-        z: Number(snake.boost.toFixed(1)),
-        p: snake.pelletProgress,
-        g: Number(snake.growthFlash.toFixed(2)),
-        f: Number(snake.phaseTime.toFixed(2)),
-        b: snake.body
-          .filter((_point, index) => index % 3 === 0)
-          .slice(0, 120)
-          .map((point) => [Math.round(point.x), Math.round(point.y)]),
+        ...(includeDetails ? {
+          u: snake.sessionId || "",
+          h: snake.isHuman,
+          n: snake.name,
+          c: [snake.color, snake.stripeColor, snake.glowColor],
+          d: snake.desiredSegments,
+          q: snake.score,
+          k: snake.kills,
+          l: snake.extraLives,
+          z: Number(snake.boost.toFixed(1)),
+          p: snake.pelletProgress,
+          g: Number(snake.growthFlash.toFixed(2)),
+          f: Number(snake.phaseTime.toFixed(2)),
+          b: snake.body
+            .filter((_point, index) => index % 3 === 0)
+            .slice(0, 100)
+            .map((point) => [Math.round(point.x), Math.round(point.y)]),
+        } : {}),
       })),
       ...(includePellets ? { p: this.pellets.slice(0, SETTINGS.pelletCount + 280).map((pellet) => [
         Math.round(pellet.x),
@@ -594,7 +599,8 @@ export class SnakeArenaRoom extends Room {
   sendSnapshot(onlySessionId = null, forcePellets = false) {
     if (!this.activeSessions.length) return;
     const includePellets = forcePellets || this.tick % this.pelletSnapshotEvery === 0;
-    const snapshot = this.makeSnapshot(includePellets);
+    const includeDetails = forcePellets || this.tick % this.bodySnapshotEvery === 0;
+    const snapshot = this.makeSnapshot(includePellets, includeDetails);
     for (const sessionId of this.activeSessions) {
       if (onlySessionId && sessionId !== onlySessionId) continue;
       this.players.get(sessionId)?.client.send("snapshot", snapshot);

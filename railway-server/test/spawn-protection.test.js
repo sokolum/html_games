@@ -87,3 +87,40 @@ test("motion snapshots can omit pellets between compact pellet updates", () => {
   assert.equal("p" in motionSnapshot, false);
   assert.equal(fullSnapshot.p.length, 520);
 });
+
+test("the authoritative server advances a human snake at arena speed", () => {
+  const room = new SnakeArenaRoom();
+  const human = room.makeSnake({
+    x: 1600,
+    y: 1600,
+    angle: 0,
+    color: "#ff405f",
+    name: "Player",
+    sessionId: "speed-test-player",
+    isHuman: true,
+  });
+
+  for (let tick = 0; tick < 60; tick += 1) room.moveSnake(human, 1 / 60);
+
+  assert.ok(Math.abs(human.x - 1750) < 0.001);
+  assert.equal(human.y, 1600);
+  assert.equal(human.speed, 150);
+});
+
+test("motion snapshots include server speed for smooth client rendering", () => {
+  const room = new SnakeArenaRoom();
+  const human = room.makeSnake({
+    x: 1600,
+    y: 1600,
+    color: "#ff405f",
+    name: "Player",
+    sessionId: "snapshot-player",
+    isHuman: true,
+  });
+  room.snakes.push(human);
+
+  const snapshot = room.makeSnapshot(false);
+
+  assert.equal(snapshot.v, 3);
+  assert.equal(snapshot.s[0].w, 150);
+});
