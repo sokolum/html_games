@@ -1,4 +1,4 @@
-const SNAKE_ARENA_VERSION = '0.16';
+const SNAKE_ARENA_VERSION = '0.20';
 const PLAYER_NAME_STORAGE_KEY = 'snakeArenaFirstName';
 const PLAYER_COLOR_STORAGE_KEY = 'snakeArenaPlayerColor';
 const PLAYER_STRIPE_COLOR_STORAGE_KEY = 'snakeArenaStripeColor';
@@ -38,7 +38,13 @@ const SETTINGS = {
   killsPerExtraLife: 10,
   phaseDuration: 1.35,
   aiRespawnDelay: 1800,
-  networkSyncInterval: 0.05
+  networkSyncInterval: 0.05,
+  networkHeartbeatInterval: 0.5,
+  serverSimulationHz: 60,
+  remoteInterpolationTicks: 6,
+  predictionServerLead: 0.05,
+  reconciliationRate: 7,
+  bodySnapshotCorrection: 0.18
 };
 
 const DEATH_SEQUENCE_MS = 2450;
@@ -116,10 +122,12 @@ let dying = false;
 let deathEndsAt = 0;
 let deathOrbs = [];
 let networkInputAngle = 0;
+let networkTurnStrength = 1;
 let multiplayer = {
   client:null,room:null,sessionId:'',joined:false,active:false,queued:false,slot:0,
   syncing:false,syncElapsed:0,players:[],waitTimer:null,deathPending:false,failures:0,
-  intentionalLeave:false,authoritativeResult:null
+  intentionalLeave:false,authoritativeResult:null,latestSnapshotTick:0,lastSnapshotTick:-1,
+  inputHeartbeat:0,lastSentAngle:NaN,lastSentTurnStrength:NaN,lastSentBoosting:null
 };
 
 function resize(){
@@ -313,6 +321,7 @@ async function leaveMultiplayer(){
   const room=multiplayer.room;multiplayer.room=null;
   if(room){try{await room.leave(true);}catch{}}
   multiplayer.client=null;multiplayer.joined=false;multiplayer.active=false;multiplayer.queued=false;multiplayer.slot=0;multiplayer.players=[];multiplayer.syncElapsed=0;multiplayer.deathPending=false;
+  multiplayer.latestSnapshotTick=0;multiplayer.lastSnapshotTick=-1;multiplayer.inputHeartbeat=0;multiplayer.lastSentAngle=NaN;multiplayer.lastSentTurnStrength=NaN;multiplayer.lastSentBoosting=null;
 }
 
 async function startFromMenu(){
@@ -398,7 +407,7 @@ function playerSteering(dt){
     if(Math.hypot(dx,dy)>18) target=Math.atan2(dy,dx);
   }
   if(target!=null){player.targetAngle=target;networkInputAngle=target;}
-  if(multiplayer.active)return;
+  networkTurnStrength=turnStrength;
   const maxTurn=SETTINGS.playerTurnSpeed*turnStrength*dt;
   player.angle=normalizeAngle(player.angle+clamp(angleDelta(player.angle,player.targetAngle),-maxTurn,maxTurn));
 }
@@ -620,28 +629,113 @@ function serializeWorldSnapshot(){
   return {v:1,t:multiplayer.tick,s:compactSnakes,p:compactPellets};
 }
 
+function finiteNumber(value,fallback=0){const number=Number(value);return Number.isFinite(number)?number:fallback;}
+
+function resampleBody(points,count){
+  const source=(Array.isArray(points)?points:[]).map(point=>({x:finiteNumber(point.x),y:finiteNumber(point.y)}));
+  const targetCount=Math.max(1,Math.floor(count)||1);
+  if(!source.length)return Array.from({length:targetCount},()=>({x:0,y:0}));
+  if(source.length===1)return Array.from({length:targetCount},()=>({...source[0]}));
+  const distances=[0];
+  for(let index=1;index<source.length;index++)distances.push(distances[index-1]+Math.hypot(source[index].x-source[index-1].x,source[index].y-source[index-1].y));
+  const total=distances[distances.length-1];
+  if(total<.001)return Array.from({length:targetCount},()=>({...source[0]}));
+  const result=[];
+  let segment=1;
+  for(let index=0;index<targetCount;index++){
+    const wanted=targetCount===1?0:total*index/(targetCount-1);
+    while(segment<distances.length-1&&distances[segment]<wanted)segment++;
+    const start=source[segment-1],end=source[segment];
+    const span=Math.max(.001,distances[segment]-distances[segment-1]);
+    const amount=clamp((wanted-distances[segment-1])/span,0,1);
+    result.push({x:start.x+(end.x-start.x)*amount,y:start.y+(end.y-start.y)*amount});
+  }
+  return result;
+}
+
+function decodeNetworkBody(value){
+  if(!Array.isArray(value))return null;
+  return value.map(point=>({x:finiteNumber(point?.[0]),y:finiteNumber(point?.[1])}));
+}
+
+function reconcilePredictedBody(s,officialBody,serverX,serverY){
+  const count=Math.min(300,Math.max(2,Math.floor(s.desiredSegments)||SETTINGS.startSegments));
+  const target=resampleBody(officialBody,count);
+  const local=resampleBody(s.body,count);
+  const leadX=s.x-serverX,leadY=s.y-serverY;
+  for(let index=0;index<count;index++){
+    const leadWeight=1-index/Math.max(1,count-1);
+    const targetX=target[index].x+leadX*leadWeight;
+    const targetY=target[index].y+leadY*leadWeight;
+    local[index].x+=(targetX-local[index].x)*SETTINGS.bodySnapshotCorrection;
+    local[index].y+=(targetY-local[index].y)*SETTINGS.bodySnapshotCorrection;
+  }
+  local[0]={x:s.x,y:s.y};
+  s.body=local;
+}
+
 function applyGuestSnapshot(snapshot,initial=false){
-  if(!snapshot||!Array.isArray(snapshot.s)||!Array.isArray(snapshot.p))return false;
+  if(!snapshot||!Array.isArray(snapshot.s))return false;
+  const snapshotTick=finiteNumber(snapshot.t,multiplayer.latestSnapshotTick);
+  if(!initial&&snapshotTick<=multiplayer.lastSnapshotTick)return Boolean(player);
+  multiplayer.lastSnapshotTick=snapshotTick;
+  multiplayer.latestSnapshotTick=Math.max(multiplayer.latestSnapshotTick,snapshotTick);
   const existing=new Map(snakes.map(s=>[s.networkId,s]));
   const next=[];
   for(const state of snapshot.s){
-    if(!state||typeof state.i!=='string'||!Array.isArray(state.b))continue;
-    const colors=Array.isArray(state.c)&&state.c.length===3?state.c.map((value,index)=>cleanPlayerColor(value,index===0?DEFAULT_PLAYER_COLOR:index===1?DEFAULT_STRIPE_COLOR:DEFAULT_GLOW_COLOR)):[DEFAULT_PLAYER_COLOR,DEFAULT_STRIPE_COLOR,DEFAULT_GLOW_COLOR];
+    if(!state||typeof state.i!=='string')continue;
     let s=existing.get(state.i);
+    const networkBody=decodeNetworkBody(state.b);
+    if(!s&&!networkBody)continue;
     const isNew=!s;
-    if(!s)s=makeSnake({x:Number(state.x)||0,y:Number(state.y)||0,color:colors[0],stripeColor:colors[1],glowColor:colors[2],name:String(state.n||'Snake')});
-    s.networkId=state.i;s.sessionId=state.u||null;s.isHuman=Boolean(state.h);s.isPlayer=s.sessionId===multiplayer.sessionId;s.isNetworkProxy=true;
-    s.name=String(state.n||'Snake');s.color=colors[0];s.stripeColor=colors[1];s.glowColor=colors[2];
-    const body=state.b.map(point=>({x:Number(point[0])||0,y:Number(point[1])||0}));
-    s.netTarget={x:Number(state.x)||0,y:Number(state.y)||0,angle:Number(state.a)||0,body};
-    if(initial||isNew){s.x=s.netTarget.x;s.y=s.netTarget.y;s.angle=s.netTarget.angle;s.body=body;}
-    s.alive=Boolean(state.v);s.desiredSegments=Number(state.d)||SETTINGS.startSegments;s.score=Number(state.q)||0;s.kills=Number(state.k)||0;s.extraLives=Number(state.l)||0;s.boost=Number(state.z)||0;s.pelletProgress=Number(state.p)||0;s.growthFlash=Number(state.g)||0;s.phaseTime=Number(state.f)||0;
+    const colors=Array.isArray(state.c)&&state.c.length===3?state.c.map((value,index)=>cleanPlayerColor(value,index===0?DEFAULT_PLAYER_COLOR:index===1?DEFAULT_STRIPE_COLOR:DEFAULT_GLOW_COLOR)):[DEFAULT_PLAYER_COLOR,DEFAULT_STRIPE_COLOR,DEFAULT_GLOW_COLOR];
+    const serverX=finiteNumber(state.x),serverY=finiteNumber(state.y),serverAngle=finiteNumber(state.a),serverSpeed=finiteNumber(state.w,SETTINGS.baseSpeed);
+    if(!s)s=makeSnake({x:serverX,y:serverY,color:colors[0],stripeColor:colors[1],glowColor:colors[2],name:String(state.n||'Snake')});
+    s.networkId=state.i;s.isNetworkProxy=true;
+    if(Object.hasOwn(state,'u'))s.sessionId=state.u||null;
+    if(Object.hasOwn(state,'h'))s.isHuman=Boolean(state.h);
+    s.isPlayer=s.sessionId===multiplayer.sessionId;
+    if(Object.hasOwn(state,'n'))s.name=String(state.n||'Snake');
+    if(Array.isArray(state.c)&&state.c.length===3){s.color=colors[0];s.stripeColor=colors[1];s.glowColor=colors[2];}
+    if(Object.hasOwn(state,'d'))s.desiredSegments=finiteNumber(state.d,SETTINGS.startSegments);
+    if(Object.hasOwn(state,'q'))s.score=finiteNumber(state.q);
+    if(Object.hasOwn(state,'k'))s.kills=finiteNumber(state.k);
+    if(Object.hasOwn(state,'l'))s.extraLives=finiteNumber(state.l);
+    if(Object.hasOwn(state,'z'))s.boost=finiteNumber(state.z);
+    if(Object.hasOwn(state,'p'))s.pelletProgress=finiteNumber(state.p);
+    if(Object.hasOwn(state,'g'))s.growthFlash=finiteNumber(state.g);
+    if(Object.hasOwn(state,'f'))s.phaseTime=finiteNumber(state.f);
+    s.alive=Boolean(state.v);s.speed=serverSpeed;
+    if(s.isPlayer){
+      const lead=SETTINGS.predictionServerLead;
+      const projectedAngle=normalizeAngle(serverAngle+clamp(angleDelta(serverAngle,networkInputAngle),-SETTINGS.playerTurnSpeed*lead,SETTINGS.playerTurnSpeed*lead));
+      const projectedX=clamp(serverX+Math.cos(projectedAngle)*serverSpeed*lead,0,SETTINGS.worldWidth);
+      const projectedY=clamp(serverY+Math.sin(projectedAngle)*serverSpeed*lead,0,SETTINGS.worldHeight);
+      s.serverTarget={x:serverX,y:serverY,angle:serverAngle,speed:serverSpeed,tick:snapshotTick};
+      if(initial||isNew){
+        s.x=serverX;s.y=serverY;s.angle=serverAngle;s.correctionX=0;s.correctionY=0;s.angleCorrection=0;s.bodySampleAccumulator=0;
+        s.body=resampleBody(networkBody||s.body,Math.min(300,Math.max(2,Math.floor(s.desiredSegments)||SETTINGS.startSegments)));
+      }else{
+        s.correctionX=projectedX-s.x;s.correctionY=projectedY-s.y;s.angleCorrection=angleDelta(s.angle,projectedAngle);
+        if(networkBody)reconcilePredictedBody(s,networkBody,serverX,serverY);
+      }
+    }else{
+      s.netSnapshots=s.netSnapshots||[];
+      if(!s.netSnapshots.length||snapshotTick>s.netSnapshots[s.netSnapshots.length-1].tick)s.netSnapshots.push({tick:snapshotTick,x:serverX,y:serverY,angle:serverAngle,speed:serverSpeed});
+      if(s.netSnapshots.length>12)s.netSnapshots.splice(0,s.netSnapshots.length-12);
+      if(networkBody){
+        s.netBodySnapshots=s.netBodySnapshots||[];
+        if(!s.netBodySnapshots.length||snapshotTick>s.netBodySnapshots[s.netBodySnapshots.length-1].tick)s.netBodySnapshots.push({tick:snapshotTick,body:networkBody});
+        if(s.netBodySnapshots.length>6)s.netBodySnapshots.splice(0,s.netBodySnapshots.length-6);
+      }
+      if(initial||isNew){s.x=serverX;s.y=serverY;s.angle=serverAngle;if(networkBody)s.body=networkBody.map(point=>({...point}));}
+    }
     next.push(s);
   }
   snakes=next;player=snakes.find(s=>s.isPlayer)||null;
   if(!player)return false;
-  pellets=snapshot.p.map(item=>({x:Number(item[0])||0,y:Number(item[1])||0,value:Number(item[2])||1,r:(Number(item[3])||40)/10,color:String(item[4]||'#ffffff'),deathDrop:Boolean(item[5]),pulse:0,vx:0,vy:0}));
-  if(initial){camera.x=player.x;camera.y=player.y;camera.zoom=1;networkInputAngle=player.angle;}
+  if(Array.isArray(snapshot.p))pellets=snapshot.p.map(item=>({x:finiteNumber(item?.[0]),y:finiteNumber(item?.[1]),value:finiteNumber(item?.[2],1),r:finiteNumber(item?.[3],40)/10,color:String(item?.[4]||'#ffffff'),deathDrop:Boolean(item?.[5]),pulse:0,vx:0,vy:0}));
+  if(initial){camera.x=player.x;camera.y=player.y;camera.zoom=1;networkInputAngle=player.angle;networkTurnStrength=1;player.targetAngle=player.angle;}
   if(!player.alive&&!multiplayer.deathPending){
     multiplayer.deathPending=true;lastPlaytimeSeconds=Math.max(1,Math.floor((performance.now()-gameStartedAt)/1000));
     hud.classList.add('hidden');leaderboard.classList.add('hidden');boostBtn.classList.add('hidden');
@@ -650,39 +744,102 @@ function applyGuestSnapshot(snapshot,initial=false){
   return true;
 }
 
+function updateRemoteSnake(s,renderTick,dt){
+  const samples=s.netSnapshots||[];
+  while(samples.length>2&&samples[1].tick<=renderTick)samples.shift();
+  if(samples.length){
+    const first=samples[0],second=samples[1]||first;
+    const amount=first===second?0:clamp((renderTick-first.tick)/Math.max(1,second.tick-first.tick),0,1);
+    s.x=first.x+(second.x-first.x)*amount;s.y=first.y+(second.y-first.y)*amount;
+    s.angle=normalizeAngle(first.angle+angleDelta(first.angle,second.angle)*amount);s.speed=first.speed+(second.speed-first.speed)*amount;
+  }
+  const bodySamples=s.netBodySnapshots||[];
+  while(bodySamples.length>2&&bodySamples[1].tick<=renderTick)bodySamples.shift();
+  if(bodySamples.length){
+    const firstBody=bodySamples[0],secondBody=bodySamples[1]||firstBody;
+    const bodyAmount=firstBody===secondBody?0:clamp((renderTick-firstBody.tick)/Math.max(1,secondBody.tick-firstBody.tick),0,1);
+    let targetBody;
+    if(firstBody.body.length===secondBody.body.length){
+      targetBody=firstBody.body.map((point,index)=>({x:point.x+(secondBody.body[index].x-point.x)*bodyAmount,y:point.y+(secondBody.body[index].y-point.y)*bodyAmount}));
+    }else targetBody=(bodyAmount<.5?firstBody.body:secondBody.body);
+    if(s.body.length!==targetBody.length)s.body=resampleBody(s.body,targetBody.length);
+    const bodyBlend=1-Math.exp(-10*dt);
+    for(let index=0;index<s.body.length;index++){
+      s.body[index].x+=(targetBody[index].x-s.body[index].x)*bodyBlend;
+      s.body[index].y+=(targetBody[index].y-s.body[index].y)*bodyBlend;
+    }
+  }
+  if(s.body.length)s.body[0]={x:s.x,y:s.y};
+}
+
+function updatePredictedPlayer(s,dt){
+  if(!s.alive)return;
+  const boostNow=boosting&&s.boost>2;
+  s.speed=boostNow?SETTINGS.boostSpeed:SETTINGS.baseSpeed;
+  if(boostNow)s.boost=Math.max(0,s.boost-SETTINGS.boostDrain*dt);else s.boost=Math.min(100,s.boost+SETTINGS.boostRecharge*dt);
+  if(Number.isFinite(s.angleCorrection)){
+    const angleBlend=1-Math.exp(-SETTINGS.reconciliationRate*dt);
+    const correction=s.angleCorrection*angleBlend;s.angle=normalizeAngle(s.angle+correction);s.angleCorrection-=correction;
+  }
+  const oldX=s.x,oldY=s.y;
+  s.x=clamp(s.x+Math.cos(s.angle)*s.speed*dt,0,SETTINGS.worldWidth);
+  s.y=clamp(s.y+Math.sin(s.angle)*s.speed*dt,0,SETTINGS.worldHeight);
+  const sampleStep=1/SETTINGS.serverSimulationHz;
+  const previousAccumulator=s.bodySampleAccumulator||0;
+  for(let sampleTime=sampleStep-previousAccumulator;sampleTime<=dt+.000001;sampleTime+=sampleStep){
+    const amount=dt>0?clamp(sampleTime/dt,0,1):1;
+    s.body.unshift({x:oldX+(s.x-oldX)*amount,y:oldY+(s.y-oldY)*amount});
+  }
+  s.bodySampleAccumulator=(previousAccumulator+dt)%sampleStep;
+  const maximumBodyPoints=Math.min(300,Math.max(2,Math.floor(s.desiredSegments)||SETTINGS.startSegments));
+  while(s.body.length>maximumBodyPoints)s.body.pop();
+  const correctionDistance=Math.hypot(s.correctionX||0,s.correctionY||0);
+  const correctionRate=correctionDistance>90?SETTINGS.reconciliationRate*1.8:SETTINGS.reconciliationRate;
+  const correctionBlend=1-Math.exp(-correctionRate*dt);
+  const correctionX=(s.correctionX||0)*correctionBlend,correctionY=(s.correctionY||0)*correctionBlend;
+  s.x+=correctionX;s.y+=correctionY;s.correctionX=(s.correctionX||0)-correctionX;s.correctionY=(s.correctionY||0)-correctionY;
+  for(const point of s.body){point.x+=correctionX;point.y+=correctionY;}
+  if(s.body.length)s.body[0]={x:s.x,y:s.y};
+}
+
 function updateGuestWorld(dt){
   playerSteering(dt);
-  const blend=Math.min(1,dt*12);
-  for(const s of snakes){
-    const target=s.netTarget;if(!target)continue;
-    s.x+=(target.x-s.x)*blend;s.y+=(target.y-s.y)*blend;s.angle=normalizeAngle(s.angle+angleDelta(s.angle,target.angle)*blend);
-    if(s.body.length!==target.body.length)s.body=target.body.map(point=>({...point}));
-    else for(let i=0;i<s.body.length;i++){s.body[i].x+=(target.body[i].x-s.body[i].x)*blend;s.body[i].y+=(target.body[i].y-s.body[i].y)*blend;}
-  }
-  camera.x+=(player.x-camera.x)*Math.min(1,dt*7);camera.y+=(player.y-camera.y)*Math.min(1,dt*7);
+  updatePredictedPlayer(player,dt);
+  const renderTick=multiplayer.latestSnapshotTick-SETTINGS.remoteInterpolationTicks;
+  for(const s of snakes)if(!s.isPlayer)updateRemoteSnake(s,renderTick,dt);
+  camera.x+=(player.x-camera.x)*Math.min(1,dt*9);camera.y+=(player.y-camera.y)*Math.min(1,dt*9);
   const targetZoom=clamp(1-(player.desiredSegments-SETTINGS.startSegments)/500,.64,1);camera.zoom+=(targetZoom-camera.zoom)*Math.min(1,dt*2.5);
   updateHud();
 }
 
 function initGuestGame(snapshot){
   snakes=[];pellets=[];particles=[];deathOrbs=[];dying=false;deathEndsAt=0;nextId=1;
+  multiplayer.latestSnapshotTick=0;multiplayer.lastSnapshotTick=-1;multiplayer.inputHeartbeat=SETTINGS.networkHeartbeatInterval;multiplayer.lastSentAngle=NaN;multiplayer.lastSentTurnStrength=NaN;multiplayer.lastSentBoosting=null;
   if(!applyGuestSnapshot(snapshot,true))return false;
   keys.clear();pointer={active:false,id:null,startX:0,startY:0,x:0,y:0};mouseAim.seen=false;boostPointerId=null;setBoost(false);
   gameStartedAt=performance.now();lastPlaytimeSeconds=0;multiplayer.deathPending=false;
   running=true;lastTime=performance.now();menu.classList.add('hidden');queuePanel.classList.add('hidden');gameOverPanel.classList.add('hidden');hud.classList.remove('hidden');leaderboard.classList.remove('hidden');
   if(matchMedia('(pointer:coarse)').matches)boostBtn.classList.remove('hidden');
+  syncMultiplayer(true);
   requestAnimationFrame(loop);return true;
 }
 
-function syncMultiplayer(){
+function syncMultiplayer(force=false){
   if(!multiplayer.active||!multiplayer.joined||!multiplayer.room)return;
-  try{multiplayer.room.send('input',{angle:networkInputAngle,boosting});multiplayer.failures=0;}
+  const angleChanged=!Number.isFinite(multiplayer.lastSentAngle)||Math.abs(angleDelta(multiplayer.lastSentAngle,networkInputAngle))>.002;
+  const strengthChanged=!Number.isFinite(multiplayer.lastSentTurnStrength)||Math.abs(multiplayer.lastSentTurnStrength-networkTurnStrength)>.01;
+  const boostChanged=multiplayer.lastSentBoosting!==boosting;
+  if(!force&&!angleChanged&&!strengthChanged&&!boostChanged&&multiplayer.inputHeartbeat<SETTINGS.networkHeartbeatInterval)return;
+  try{
+    multiplayer.room.send('input',{angle:networkInputAngle,turnStrength:networkTurnStrength,boosting});multiplayer.failures=0;
+    multiplayer.lastSentAngle=networkInputAngle;multiplayer.lastSentTurnStrength=networkTurnStrength;multiplayer.lastSentBoosting=boosting;multiplayer.inputHeartbeat=0;
+  }
   catch{multiplayer.failures++;onlineRoleEl.textContent='RECONNECT';}
 }
 
 function scheduleMultiplayerSync(dt){
   if(!multiplayer.active)return;
-  multiplayer.syncElapsed+=dt;
+  multiplayer.syncElapsed+=dt;multiplayer.inputHeartbeat+=dt;
   if(multiplayer.syncElapsed>=SETTINGS.networkSyncInterval){multiplayer.syncElapsed=0;syncMultiplayer();}
 }
 

@@ -102,6 +102,8 @@ export class SnakeArenaRoom extends Room {
       if (!snake?.alive) return;
       const inputAngle = Number(message?.angle);
       if (Number.isFinite(inputAngle)) snake.targetAngle = normalizeAngle(inputAngle);
+      const turnStrength = Number(message?.turnStrength);
+      if (Number.isFinite(turnStrength)) snake.turnStrength = clamp(turnStrength, 0.28, 1);
       snake.boostRequested = Boolean(message?.boosting);
     },
   };
@@ -249,6 +251,7 @@ export class SnakeArenaRoom extends Room {
       phaseTime: isHuman ? SETTINGS.spawnProtectionDuration : 0,
       boost: 100,
       boostRequested: false,
+      turnStrength: 1,
       pelletProgress: 0,
       growthFlash: 0,
       aiTimer: 0,
@@ -369,7 +372,7 @@ export class SnakeArenaRoom extends Room {
   }
 
   steerHuman(snake, deltaTime) {
-    const maxTurn = SETTINGS.playerTurnSpeed * deltaTime;
+    const maxTurn = SETTINGS.playerTurnSpeed * snake.turnStrength * deltaTime;
     snake.angle = normalizeAngle(snake.angle + clamp(angleDelta(snake.angle, snake.targetAngle), -maxTurn, maxTurn));
   }
 

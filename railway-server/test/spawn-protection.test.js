@@ -88,6 +88,48 @@ test("motion snapshots can omit pellets between compact pellet updates", () => {
   assert.equal(fullSnapshot.p.length, 520);
 });
 
+test("fast motion snapshots contain head movement without repeating body details", () => {
+  const room = new SnakeArenaRoom();
+  const human = room.makeSnake({
+    x: 1600,
+    y: 1600,
+    color: "#ff405f",
+    name: "Player",
+    sessionId: "compact-player",
+    isHuman: true,
+  });
+  room.snakes.push(human);
+
+  const snapshot = room.makeSnapshot(false, false);
+
+  assert.equal("p" in snapshot, false);
+  assert.equal("b" in snapshot.s[0], false);
+  assert.equal(snapshot.s[0].x, 1600);
+  assert.equal(snapshot.s[0].w, 150);
+});
+
+test("human steering uses the same analogue turn strength as the client", () => {
+  const room = new SnakeArenaRoom();
+  const human = room.makeSnake({
+    x: 1600,
+    y: 1600,
+    angle: 0,
+    color: "#ff405f",
+    name: "Player",
+    sessionId: "turn-player",
+    isHuman: true,
+  });
+  room.players.set("turn-player", { active: true });
+  room.snakes.push(human);
+  room.messages.input({ sessionId: "turn-player" }, { angle: Math.PI / 2, turnStrength: 0.5, boosting: false });
+  human.targetAngle = Math.PI / 2;
+
+  room.steerHuman(human, 1 / 60);
+
+  assert.equal(human.turnStrength, 0.5);
+  assert.ok(Math.abs(human.angle - 0.06) < 0.000001);
+});
+
 test("the authoritative server advances a human snake at arena speed", () => {
   const room = new SnakeArenaRoom();
   const human = room.makeSnake({
