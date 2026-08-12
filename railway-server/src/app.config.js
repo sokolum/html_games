@@ -39,7 +39,7 @@ const server = defineServer({
       next();
     });
     app.get("/health", (_request, response) => {
-      response.json({ ok: true, service: "snake-arena", version: "0.19.0" });
+      response.json({ ok: true, service: "snake-arena", version: "0.20.0" });
     });
   },
 });
