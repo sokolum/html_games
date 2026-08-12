@@ -524,6 +524,8 @@ export class SnakeArenaRoom extends Room {
     this.respawnAI();
     this.updateDeathPellets(deltaTime);
     while (this.pellets.length < SETTINGS.pelletCount) this.pellets.push(this.makePellet());
+    const maximumPellets = SETTINGS.pelletCount + 280;
+    if (this.pellets.length > maximumPellets) this.pellets.splice(0, this.pellets.length - maximumPellets);
     if (this.tick % this.snapshotEvery === 0) this.sendSnapshot();
   }
 
