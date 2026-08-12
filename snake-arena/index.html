@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <meta name="theme-color" content="#05070d">
-  <title>Snake Arena v0.1</title>
+  <title>Snake Arena v0.16</title>
   <link rel="stylesheet" href="./style.css">
 </head>
 <body>
@@ -12,49 +12,103 @@
     <canvas id="game" aria-label="Snake Arena game"></canvas>
 
     <section id="hud" class="hud hidden">
+      <div class="hudBlock playerHud"><span class="label">Player</span><strong id="playerName">—</strong></div>
       <div class="hudBlock"><span class="label">Score</span><strong id="score">0</strong></div>
       <div class="hudBlock"><span class="label">Length</span><strong id="length">0</strong></div>
       <div class="hudBlock"><span class="label">Kills</span><strong id="kills">0</strong></div>
+      <div class="hudBlock livesHud"><span class="label">Lives</span><strong id="lives">0</strong><small id="lifeProgress">NEXT 0/10</small></div>
+      <div class="hudBlock onlineHud"><span class="label">Online</span><strong id="onlineCount">1/4</strong><small id="onlineRole">CONNECTING</small></div>
       <div class="hudBlock boostHud"><span class="label">Boost</span><div class="boostBar"><span id="boostFill"></span></div></div>
     </section>
 
     <section id="leaderboard" class="leaderboard hidden">
-      <div class="boardTitle">Arena</div>
+      <div class="boardTitle"><span>Arena</span><span id="snakeCount">0 snakes</span></div>
       <ol id="leaders"></ol>
     </section>
 
     <section id="menu" class="overlay">
-      <div class="panel heroPanel">
-        <div class="eyebrow">HTML Games • v0.1</div>
+      <div class="panel heroPanel arenaPanel">
+        <div class="eyebrow">HTML Games • v0.16 · REALTIME 4 PLAYER BETA</div>
         <h1>Snake <span>Arena</span></h1>
-        <p class="intro">Grow, survive and force rival snakes to crash into your body.</p>
-        <div class="controls">
-          <div><b>Desktop</b><span>Mouse or WASD / Arrow keys</span></div>
-          <div><b>Mobile</b><span>Drag anywhere to steer</span></div>
-          <div><b>Boost</b><span>Hold Space or the BOOST button</span></div>
+        <div class="menuGrid">
+          <div class="menuMain">
+            <p class="intro">Eat 10 pellets to grow. Arena pellets are worth 1, 5 or 10 points; every defeated snake scatters pellets worth a random 1–20 points. Higher-value drops are larger and brighter.</p>
+            <div class="controls">
+              <div><b>Desktop</b><span>Mouse or WASD / Arrow keys</span></div>
+              <div><b>Mobile</b><span>Touch anywhere, then drag from that point</span></div>
+              <div><b>Boost</b><span>Hold Space or the BOOST button</span></div>
+            </div>
+            <div class="lifeRule"><b>EXTRA LIFE</b><span>Earn one every 10 kills. It absorbs one snake collision and lets you phase straight through.</span></div>
+            <label class="nameField" for="firstName">First name</label>
+            <div class="nameControls">
+              <input id="firstName" class="nameInput" maxlength="16" autocomplete="given-name" placeholder="Your name" aria-describedby="nameStatus">
+              <button id="clearNameBtn" class="clearName" type="button">CLEAR NAME</button>
+            </div>
+            <div id="nameStatus" class="formStatus">Maximum 16 characters</div>
+            <div class="colorSelector" aria-labelledby="snakeColorLabel">
+              <div class="colorSelectorHead"><span id="snakeColorLabel">Snake palette</span><span id="colorStatus">Main · Stripe · Glow</span></div>
+              <div class="colorOptions">
+                <button class="colorSwatch" type="button" data-color="#ff405f" aria-label="Red" style="--swatch:#ff405f"></button>
+                <button class="colorSwatch" type="button" data-color="#ff4fd8" aria-label="Magenta" style="--swatch:#ff4fd8"></button>
+                <button class="colorSwatch" type="button" data-color="#57d6ff" aria-label="Blue" style="--swatch:#57d6ff"></button>
+                <button class="colorSwatch" type="button" data-color="#49f5a6" aria-label="Green" style="--swatch:#49f5a6"></button>
+                <button class="colorSwatch" type="button" data-color="#ffcf4d" aria-label="Amber" style="--swatch:#ffcf4d"></button>
+                <button class="colorSwatch" type="button" data-color="#b47cff" aria-label="Purple" style="--swatch:#b47cff"></button>
+                <label class="customColor">MAIN <input id="snakeColor" type="color" value="#ff405f" aria-label="Main snake color"></label>
+              </div>
+              <div class="paletteExtras">
+                <label class="paletteColor">STRIPE <input id="snakeStripeColor" type="color" value="#ffcf4d" aria-label="Snake stripe color"></label>
+                <label class="paletteColor">GLOW <input id="snakeGlowColor" type="color" value="#57d6ff" aria-label="Snake glow color"></label>
+                <span id="palettePreview" class="palettePreview" aria-label="Selected three-color snake palette"></span>
+              </div>
+            </div>
+            <div id="networkStatus" class="networkStatus">RAILWAY REALTIME ARENA · 4 ONLINE SLOTS</div>
+            <button id="startBtn" class="primary">START ARENA</button>
+            <a class="back" href="/#games" target="_top">← Back to games</a>
+          </div>
+          <section class="onlineBoard" aria-labelledby="topScoresTitle">
+            <div class="boardHeading"><h2 id="topScoresTitle">Top 50</h2><span>Online</span></div>
+            <div id="scoreLoadStatus" class="scoreStatus">Loading scores...</div>
+            <div class="scoreScroll"><table><thead><tr><th>#</th><th>Player</th><th>Score</th><th>Kills</th><th>Length</th><th>Time</th><th>Date</th></tr></thead><tbody id="menuScores"></tbody></table></div>
+          </section>
         </div>
-        <button id="startBtn" class="primary">START ARENA</button>
-        <a class="back" href="/">← Back to games</a>
+      </div>
+    </section>
+
+    <section id="queuePanel" class="overlay hidden">
+      <div class="panel queueCard">
+        <div class="eyebrow">Public arena full</div>
+        <h2>Waiting Queue</h2>
+        <strong id="queuePosition" class="queuePosition">#1</strong>
+        <p id="queueStatus" class="intro">Waiting for an online slot…</p>
+        <button id="leaveQueueBtn" class="back queueLeave" type="button">LEAVE QUEUE</button>
       </div>
     </section>
 
     <section id="gameOver" class="overlay hidden">
-      <div class="panel resultPanel">
+      <div class="panel resultPanel arenaPanel">
         <div class="eyebrow">Run ended</div>
         <h2>Game Over</h2>
         <div class="resultGrid">
           <div><span>Score</span><strong id="finalScore">0</strong></div>
           <div><span>Kills</span><strong id="finalKills">0</strong></div>
           <div><span>Length</span><strong id="finalLength">0</strong></div>
+          <div><span>Playtime</span><strong id="finalPlaytime">0:00</strong></div>
         </div>
-        <button id="restartBtn" class="primary">PLAY AGAIN</button>
-        <a class="back" href="/">← Back to games</a>
+        <div id="saveStatus" class="formStatus">Saving score...</div>
+        <button id="menuBtn" class="primary">BACK TO MENU</button>
+        <a class="back" href="/#games" target="_top">← Back to games</a>
+        <section class="onlineBoard resultBoard" aria-labelledby="resultScoresTitle">
+          <div class="boardHeading"><h3 id="resultScoresTitle">Top 50</h3><span>Online</span></div>
+          <div class="scoreScroll"><table><thead><tr><th>#</th><th>Player</th><th>Score</th><th>Kills</th><th>Length</th><th>Time</th><th>Date</th></tr></thead><tbody id="resultScores"></tbody></table></div>
+        </section>
       </div>
     </section>
 
     <button id="boostBtn" class="boostButton hidden" aria-label="Boost">BOOST</button>
     <div id="rotateHint" class="rotateHint hidden">Rotate your device to landscape</div>
   </main>
+  <script src="https://unpkg.com/@colyseus/sdk@0.17.43/dist/colyseus.js"></script>
   <script src="./game.js"></script>
 </body>
 </html>
