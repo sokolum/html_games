@@ -2,8 +2,9 @@ import { Room } from "colyseus";
 
 const ACTIVE_PLAYER_LIMIT = 4;
 const TOTAL_SNAKES = 19;
-const SNAPSHOT_HZ = 15;
+const SNAPSHOT_HZ = 30;
 const SIMULATION_HZ = 30;
+const PELLET_SNAPSHOT_HZ = 5;
 
 const SETTINGS = {
   worldWidth: 4200,
@@ -30,7 +31,8 @@ const SETTINGS = {
   killsPerExtraLife: 10,
   phaseDuration: 1.35,
   aiRespawnDelay: 1800,
-  spawnProtectionDuration: 3,
+  spawnProtectionDuration: 5,
+  humanSpawnMargin: 900,
 };
 
 const COLORS = ["#ff5d7d", "#57d6ff", "#ffcf4d", "#b47cff", "#ff8e4f", "#49f5a6", "#f06cff", "#e9ff5e", "#72a4ff"];
@@ -84,9 +86,13 @@ export class SnakeArenaRoom extends Room {
   nextSnakeId = 1;
   tick = 0;
   snapshotEvery = Math.max(1, Math.round(SIMULATION_HZ / SNAPSHOT_HZ));
+  pelletSnapshotEvery = Math.max(1, Math.round(SIMULATION_HZ / PELLET_SNAPSHOT_HZ));
 
   messages = {
-    ready: (client) => this.sendMemberships(client.sessionId),
+    ready: (client) => {
+      this.sendMemberships(client.sessionId);
+      if (this.players.get(client.sessionId)?.active) this.sendSnapshot(client.sessionId, true);
+    },
     input: (client, message) => {
       const profile = this.players.get(client.sessionId);
       if (!profile?.active) return;
@@ -142,10 +148,12 @@ export class SnakeArenaRoom extends Room {
     this.waitingSessions = this.waitingSessions.filter((entry) => entry !== sessionId);
     const aiIndex = this.snakes.findIndex((entry) => !entry.isHuman);
     if (aiIndex >= 0) this.snakes.splice(aiIndex, 1);
-    const point = this.safeWorldPoint(500);
+    const point = this.safeWorldPoint(SETTINGS.humanSpawnMargin);
+    const angle = this.inwardSpawnAngle(point);
     const snake = this.makeSnake({
       x: point.x,
       y: point.y,
+      angle,
       color: profile.palette[0],
       stripeColor: profile.palette[1],
       glowColor: profile.palette[2],
@@ -202,8 +210,12 @@ export class SnakeArenaRoom extends Room {
     return fallback;
   }
 
-  makeSnake({ x, y, color, stripeColor = color, glowColor = color, name, sessionId = null, isHuman = false }) {
-    const angle = rand(-Math.PI, Math.PI);
+  inwardSpawnAngle(point) {
+    const centerAngle = Math.atan2(SETTINGS.worldHeight / 2 - point.y, SETTINGS.worldWidth / 2 - point.x);
+    return normalizeAngle(centerAngle + rand(-0.22, 0.22));
+  }
+
+  makeSnake({ x, y, angle = rand(-Math.PI, Math.PI), color, stripeColor = color, glowColor = color, name, sessionId = null, isHuman = false }) {
     const body = [];
     for (let index = 0; index < SETTINGS.startSegments; index += 1) {
       body.push({
@@ -438,8 +450,16 @@ export class SnakeArenaRoom extends Room {
     return true;
   }
 
-  killSnake(victim, killer = null) {
+  killSnake(victim, killer = null, reason = "collision") {
     if (!victim.alive) return;
+    console.info("snake_death", {
+      victim: victim.networkId,
+      killer: killer?.networkId || null,
+      reason,
+      x: Math.round(victim.x),
+      y: Math.round(victim.y),
+      tick: this.tick,
+    });
     victim.alive = false;
     victim.boostRequested = false;
     if (killer && killer !== victim) this.awardKill(killer);
@@ -450,6 +470,7 @@ export class SnakeArenaRoom extends Room {
         score: victim.score,
         kills: victim.kills,
         length: victim.desiredSegments,
+        reason,
       });
     } else {
       victim.respawnAt = Date.now() + SETTINGS.aiRespawnDelay;
@@ -466,20 +487,20 @@ export class SnakeArenaRoom extends Room {
         snake.x >= SETTINGS.worldWidth - headRadius ||
         snake.y >= SETTINGS.worldHeight - headRadius
       ) {
-        this.killSnake(snake);
+        this.killSnake(snake, null, "wall");
         continue;
       }
       if (snake.phaseTime > 0) continue;
       for (const other of this.snakes) {
-        if (!other.alive) continue;
-        const start = other === snake ? 14 : 3;
+        if (other === snake || !other.alive) continue;
+        const start = 3;
         for (let index = start; index < other.body.length; index += 2) {
           const segment = other.body[index];
           const dx = snake.x - segment.x;
           const dy = snake.y - segment.y;
           const hit = headRadius + this.bodyRadiusFor(other) - 2;
           if (dx * dx + dy * dy < hit * hit) {
-            if (!this.consumeExtraLife(snake)) this.killSnake(snake, other === snake ? null : other);
+            if (!this.consumeExtraLife(snake)) this.killSnake(snake, other, "snake");
             break;
           }
         }
@@ -530,7 +551,7 @@ export class SnakeArenaRoom extends Room {
     if (this.tick % this.snapshotEvery === 0) this.sendSnapshot();
   }
 
-  makeSnapshot() {
+  makeSnapshot(includePellets = true) {
     return {
       v: 2,
       t: this.tick,
@@ -555,25 +576,27 @@ export class SnakeArenaRoom extends Room {
         g: Number(snake.growthFlash.toFixed(2)),
         f: Number(snake.phaseTime.toFixed(2)),
         b: snake.body
-          .filter((_point, index) => index % 2 === 0)
-          .slice(0, 180)
+          .filter((_point, index) => index % 3 === 0)
+          .slice(0, 120)
           .map((point) => [Math.round(point.x), Math.round(point.y)]),
       })),
-      p: this.pellets.slice(0, SETTINGS.pelletCount + 280).map((pellet) => [
+      ...(includePellets ? { p: this.pellets.slice(0, SETTINGS.pelletCount + 280).map((pellet) => [
         Math.round(pellet.x),
         Math.round(pellet.y),
         pellet.value,
         Math.round(pellet.r * 10),
         pellet.color,
         pellet.deathDrop ? 1 : 0,
-      ]),
+      ]) } : {}),
     };
   }
 
-  sendSnapshot() {
+  sendSnapshot(onlySessionId = null, forcePellets = false) {
     if (!this.activeSessions.length) return;
-    const snapshot = this.makeSnapshot();
+    const includePellets = forcePellets || this.tick % this.pelletSnapshotEvery === 0;
+    const snapshot = this.makeSnapshot(includePellets);
     for (const sessionId of this.activeSessions) {
+      if (onlySessionId && sessionId !== onlySessionId) continue;
       this.players.get(sessionId)?.client.send("snapshot", snapshot);
     }
   }

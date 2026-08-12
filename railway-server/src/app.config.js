@@ -38,7 +38,7 @@ const server = defineServer({
       next();
     });
     app.get("/health", (_request, response) => {
-      response.json({ ok: true, service: "snake-arena", version: "0.17.0" });
+      response.json({ ok: true, service: "snake-arena", version: "0.18.0" });
     });
   },
 });

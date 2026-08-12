@@ -47,3 +47,43 @@ test("AI snakes use a location clear of existing snake bodies", () => {
     assert.ok(dx * dx + dy * dy >= 500 * 500);
   }
 });
+
+test("a human snake never collides with its own body", () => {
+  const room = new SnakeArenaRoom();
+  const human = room.makeSnake({
+    x: 1600,
+    y: 1600,
+    color: "#ff405f",
+    name: "Player",
+    sessionId: "test-player",
+    isHuman: true,
+  });
+  human.phaseTime = 0;
+  human.body[20] = { x: human.x, y: human.y };
+  room.snakes.push(human);
+
+  room.collisions();
+
+  assert.equal(human.alive, true);
+});
+
+test("human spawn direction points toward the safe center", () => {
+  const room = new SnakeArenaRoom();
+  const point = { x: 900, y: 900 };
+  const angle = room.inwardSpawnAngle(point);
+  const direction = { x: Math.cos(angle), y: Math.sin(angle) };
+  const towardCenter = { x: 2100 - point.x, y: 2100 - point.y };
+
+  assert.ok(direction.x * towardCenter.x + direction.y * towardCenter.y > 0);
+});
+
+test("motion snapshots can omit pellets between compact pellet updates", () => {
+  const room = new SnakeArenaRoom();
+  room.seedPellets();
+
+  const motionSnapshot = room.makeSnapshot(false);
+  const fullSnapshot = room.makeSnapshot(true);
+
+  assert.equal("p" in motionSnapshot, false);
+  assert.equal(fullSnapshot.p.length, 520);
+});
