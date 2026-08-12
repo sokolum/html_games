@@ -1,4 +1,4 @@
-const SNAKE_ARENA_VERSION = '0.20';
+const SNAKE_ARENA_VERSION = '0.21';
 const PLAYER_NAME_STORAGE_KEY = 'snakeArenaFirstName';
 const PLAYER_COLOR_STORAGE_KEY = 'snakeArenaPlayerColor';
 const PLAYER_STRIPE_COLOR_STORAGE_KEY = 'snakeArenaStripeColor';
@@ -39,10 +39,12 @@ const SETTINGS = {
   phaseDuration: 1.35,
   aiRespawnDelay: 1800,
   networkSyncInterval: 0.05,
-  networkHeartbeatInterval: 0.5,
+  maxInputFramesPerMessage: 12,
+  maxPendingInputFrames: 720,
+  maxPredictionStepsPerFrame: 8,
   serverSimulationHz: 60,
   remoteInterpolationTicks: 6,
-  predictionServerLead: 0.05,
+  legacyPredictionServerLead: 0.05,
   reconciliationRate: 7,
   bodySnapshotCorrection: 0.18
 };
@@ -127,7 +129,7 @@ let multiplayer = {
   client:null,room:null,sessionId:'',joined:false,active:false,queued:false,slot:0,
   syncing:false,syncElapsed:0,players:[],waitTimer:null,deathPending:false,failures:0,
   intentionalLeave:false,authoritativeResult:null,latestSnapshotTick:0,lastSnapshotTick:-1,
-  inputHeartbeat:0,lastSentAngle:NaN,lastSentTurnStrength:NaN,lastSentBoosting:null
+  fixedAccumulator:0,nextInputSequence:1,lastAckInputSequence:0,pendingInputs:[],unsentInputs:[]
 };
 
 function resize(){
@@ -321,7 +323,7 @@ async function leaveMultiplayer(){
   const room=multiplayer.room;multiplayer.room=null;
   if(room){try{await room.leave(true);}catch{}}
   multiplayer.client=null;multiplayer.joined=false;multiplayer.active=false;multiplayer.queued=false;multiplayer.slot=0;multiplayer.players=[];multiplayer.syncElapsed=0;multiplayer.deathPending=false;
-  multiplayer.latestSnapshotTick=0;multiplayer.lastSnapshotTick=-1;multiplayer.inputHeartbeat=0;multiplayer.lastSentAngle=NaN;multiplayer.lastSentTurnStrength=NaN;multiplayer.lastSentBoosting=null;
+  multiplayer.latestSnapshotTick=0;multiplayer.lastSnapshotTick=-1;multiplayer.fixedAccumulator=0;multiplayer.nextInputSequence=1;multiplayer.lastAckInputSequence=0;multiplayer.pendingInputs=[];multiplayer.unsentInputs=[];
 }
 
 async function startFromMenu(){
@@ -387,7 +389,7 @@ window.addEventListener('pointercancel',releaseSteeringPointer);
 window.addEventListener('blur',()=>{pointer.active=false;pointer.id=null;boostPointerId=null;setBoost(false);});
 window.addEventListener('beforeunload',()=>{multiplayer.intentionalLeave=true;if(multiplayer.room)multiplayer.room.leave(true).catch(()=>{});});
 
-function playerSteering(dt){
+function capturePlayerSteering(){
   let target=null;
   let turnStrength=1;
   const left=keys.has('a')||keys.has('arrowleft'), right=keys.has('d')||keys.has('arrowright');
@@ -408,7 +410,11 @@ function playerSteering(dt){
   }
   if(target!=null){player.targetAngle=target;networkInputAngle=target;}
   networkTurnStrength=turnStrength;
-  const maxTurn=SETTINGS.playerTurnSpeed*turnStrength*dt;
+}
+
+function playerSteering(dt){
+  capturePlayerSteering();
+  const maxTurn=SETTINGS.playerTurnSpeed*networkTurnStrength*dt;
   player.angle=normalizeAngle(player.angle+clamp(angleDelta(player.angle,player.targetAngle),-maxTurn,maxTurn));
 }
 
@@ -674,6 +680,55 @@ function reconcilePredictedBody(s,officialBody,serverX,serverY){
   s.body=local;
 }
 
+function simulatePredictedInputFrame(s,input,dt,updateBody=true){
+  const targetAngle=normalizeAngle(finiteNumber(input?.angle,s.angle));
+  const turnStrength=clamp(finiteNumber(input?.turnStrength,1),.28,1);
+  s.targetAngle=targetAngle;
+  const maxTurn=SETTINGS.playerTurnSpeed*turnStrength*dt;
+  s.angle=normalizeAngle(s.angle+clamp(angleDelta(s.angle,targetAngle),-maxTurn,maxTurn));
+  const boostNow=Boolean(input?.boosting)&&s.boost>2;
+  s.speed=boostNow?SETTINGS.boostSpeed:SETTINGS.baseSpeed;
+  if(boostNow)s.boost=Math.max(0,s.boost-SETTINGS.boostDrain*dt);else s.boost=Math.min(100,s.boost+SETTINGS.boostRecharge*dt);
+  s.x=clamp(s.x+Math.cos(s.angle)*s.speed*dt,0,SETTINGS.worldWidth);
+  s.y=clamp(s.y+Math.sin(s.angle)*s.speed*dt,0,SETTINGS.worldHeight);
+  if(updateBody&&Array.isArray(s.body)){
+    s.body.unshift({x:s.x,y:s.y});
+    const maximumBodyPoints=Math.min(300,Math.max(2,Math.floor(s.desiredSegments)||SETTINGS.startSegments));
+    while(s.body.length>maximumBodyPoints)s.body.pop();
+  }
+}
+
+function replayPendingInputFrames(serverState){
+  const predicted={
+    x:serverState.x,y:serverState.y,angle:serverState.angle,speed:serverState.speed,
+    boost:serverState.boost,targetAngle:serverState.angle,desiredSegments:serverState.desiredSegments,body:null
+  };
+  const fixedStep=1/SETTINGS.serverSimulationHz;
+  for(const input of multiplayer.pendingInputs)simulatePredictedInputFrame(predicted,input,fixedStep,false);
+  return predicted;
+}
+
+function acknowledgeInputFrames(sequence){
+  multiplayer.lastAckInputSequence=Math.max(multiplayer.lastAckInputSequence,sequence);
+  const acknowledged=multiplayer.lastAckInputSequence;
+  multiplayer.pendingInputs=multiplayer.pendingInputs.filter(input=>input.sequence>acknowledged);
+  multiplayer.unsentInputs=multiplayer.unsentInputs.filter(input=>input.sequence>acknowledged);
+  return acknowledged;
+}
+
+function createPredictedInputFrame(s){
+  const input={
+    sequence:multiplayer.nextInputSequence++,
+    angle:Number(normalizeAngle(networkInputAngle).toFixed(5)),
+    turnStrength:Number(clamp(networkTurnStrength,.28,1).toFixed(3)),
+    boosting:Boolean(boosting)
+  };
+  multiplayer.pendingInputs.push(input);multiplayer.unsentInputs.push(input);
+  if(multiplayer.pendingInputs.length>SETTINGS.maxPendingInputFrames)multiplayer.pendingInputs.splice(0,multiplayer.pendingInputs.length-SETTINGS.maxPendingInputFrames);
+  simulatePredictedInputFrame(s,input,1/SETTINGS.serverSimulationHz,true);
+  return input;
+}
+
 function applyGuestSnapshot(snapshot,initial=false){
   if(!snapshot||!Array.isArray(snapshot.s))return false;
   const snapshotTick=finiteNumber(snapshot.t,multiplayer.latestSnapshotTick);
@@ -707,16 +762,25 @@ function applyGuestSnapshot(snapshot,initial=false){
     if(Object.hasOwn(state,'f'))s.phaseTime=finiteNumber(state.f);
     s.alive=Boolean(state.v);s.speed=serverSpeed;
     if(s.isPlayer){
-      const lead=SETTINGS.predictionServerLead;
-      const projectedAngle=normalizeAngle(serverAngle+clamp(angleDelta(serverAngle,networkInputAngle),-SETTINGS.playerTurnSpeed*lead,SETTINGS.playerTurnSpeed*lead));
-      const projectedX=clamp(serverX+Math.cos(projectedAngle)*serverSpeed*lead,0,SETTINGS.worldWidth);
-      const projectedY=clamp(serverY+Math.sin(projectedAngle)*serverSpeed*lead,0,SETTINGS.worldHeight);
-      s.serverTarget={x:serverX,y:serverY,angle:serverAngle,speed:serverSpeed,tick:snapshotTick};
+      const rawAcknowledgement=Number(state.r);
+      const hasAcknowledgement=Number.isSafeInteger(rawAcknowledgement)&&rawAcknowledgement>=0;
+      const acknowledgement=hasAcknowledgement?acknowledgeInputFrames(rawAcknowledgement):null;
+      s.serverTarget={x:serverX,y:serverY,angle:serverAngle,speed:serverSpeed,tick:snapshotTick,acknowledgement};
       if(initial||isNew){
         s.x=serverX;s.y=serverY;s.angle=serverAngle;s.correctionX=0;s.correctionY=0;s.angleCorrection=0;s.bodySampleAccumulator=0;
         s.body=resampleBody(networkBody||s.body,Math.min(300,Math.max(2,Math.floor(s.desiredSegments)||SETTINGS.startSegments)));
       }else{
-        s.correctionX=projectedX-s.x;s.correctionY=projectedY-s.y;s.angleCorrection=angleDelta(s.angle,projectedAngle);
+        if(hasAcknowledgement){
+          const predicted=replayPendingInputFrames({x:serverX,y:serverY,angle:serverAngle,speed:serverSpeed,boost:s.boost,desiredSegments:s.desiredSegments});
+          s.correctionX=predicted.x-s.x;s.correctionY=predicted.y-s.y;s.angleCorrection=angleDelta(s.angle,predicted.angle);
+          s.speed=predicted.speed;s.boost=predicted.boost;s.targetAngle=predicted.targetAngle;s.predictedTarget=predicted;
+        }else{
+          const lead=SETTINGS.legacyPredictionServerLead;
+          const projectedAngle=normalizeAngle(serverAngle+clamp(angleDelta(serverAngle,networkInputAngle),-SETTINGS.playerTurnSpeed*lead,SETTINGS.playerTurnSpeed*lead));
+          const projectedX=clamp(serverX+Math.cos(projectedAngle)*serverSpeed*lead,0,SETTINGS.worldWidth);
+          const projectedY=clamp(serverY+Math.sin(projectedAngle)*serverSpeed*lead,0,SETTINGS.worldHeight);
+          s.correctionX=projectedX-s.x;s.correctionY=projectedY-s.y;s.angleCorrection=angleDelta(s.angle,projectedAngle);
+        }
         if(networkBody)reconcilePredictedBody(s,networkBody,serverX,serverY);
       }
     }else{
@@ -774,25 +838,10 @@ function updateRemoteSnake(s,renderTick,dt){
 
 function updatePredictedPlayer(s,dt){
   if(!s.alive)return;
-  const boostNow=boosting&&s.boost>2;
-  s.speed=boostNow?SETTINGS.boostSpeed:SETTINGS.baseSpeed;
-  if(boostNow)s.boost=Math.max(0,s.boost-SETTINGS.boostDrain*dt);else s.boost=Math.min(100,s.boost+SETTINGS.boostRecharge*dt);
   if(Number.isFinite(s.angleCorrection)){
     const angleBlend=1-Math.exp(-SETTINGS.reconciliationRate*dt);
     const correction=s.angleCorrection*angleBlend;s.angle=normalizeAngle(s.angle+correction);s.angleCorrection-=correction;
   }
-  const oldX=s.x,oldY=s.y;
-  s.x=clamp(s.x+Math.cos(s.angle)*s.speed*dt,0,SETTINGS.worldWidth);
-  s.y=clamp(s.y+Math.sin(s.angle)*s.speed*dt,0,SETTINGS.worldHeight);
-  const sampleStep=1/SETTINGS.serverSimulationHz;
-  const previousAccumulator=s.bodySampleAccumulator||0;
-  for(let sampleTime=sampleStep-previousAccumulator;sampleTime<=dt+.000001;sampleTime+=sampleStep){
-    const amount=dt>0?clamp(sampleTime/dt,0,1):1;
-    s.body.unshift({x:oldX+(s.x-oldX)*amount,y:oldY+(s.y-oldY)*amount});
-  }
-  s.bodySampleAccumulator=(previousAccumulator+dt)%sampleStep;
-  const maximumBodyPoints=Math.min(300,Math.max(2,Math.floor(s.desiredSegments)||SETTINGS.startSegments));
-  while(s.body.length>maximumBodyPoints)s.body.pop();
   const correctionDistance=Math.hypot(s.correctionX||0,s.correctionY||0);
   const correctionRate=correctionDistance>90?SETTINGS.reconciliationRate*1.8:SETTINGS.reconciliationRate;
   const correctionBlend=1-Math.exp(-correctionRate*dt);
@@ -803,7 +852,14 @@ function updatePredictedPlayer(s,dt){
 }
 
 function updateGuestWorld(dt){
-  playerSteering(dt);
+  capturePlayerSteering();
+  const fixedStep=1/SETTINGS.serverSimulationHz;
+  multiplayer.fixedAccumulator=Math.min(multiplayer.fixedAccumulator+Math.max(0,dt),fixedStep*SETTINGS.maxPredictionStepsPerFrame);
+  let predictionSteps=0;
+  while(player.alive&&multiplayer.fixedAccumulator+.000001>=fixedStep&&predictionSteps<SETTINGS.maxPredictionStepsPerFrame){
+    createPredictedInputFrame(player);multiplayer.fixedAccumulator-=fixedStep;predictionSteps++;
+  }
+  if(multiplayer.fixedAccumulator<0)multiplayer.fixedAccumulator=0;
   updatePredictedPlayer(player,dt);
   const renderTick=multiplayer.latestSnapshotTick-SETTINGS.remoteInterpolationTicks;
   for(const s of snakes)if(!s.isPlayer)updateRemoteSnake(s,renderTick,dt);
@@ -814,7 +870,7 @@ function updateGuestWorld(dt){
 
 function initGuestGame(snapshot){
   snakes=[];pellets=[];particles=[];deathOrbs=[];dying=false;deathEndsAt=0;nextId=1;
-  multiplayer.latestSnapshotTick=0;multiplayer.lastSnapshotTick=-1;multiplayer.inputHeartbeat=SETTINGS.networkHeartbeatInterval;multiplayer.lastSentAngle=NaN;multiplayer.lastSentTurnStrength=NaN;multiplayer.lastSentBoosting=null;
+  multiplayer.latestSnapshotTick=0;multiplayer.lastSnapshotTick=-1;multiplayer.fixedAccumulator=0;multiplayer.nextInputSequence=1;multiplayer.lastAckInputSequence=0;multiplayer.pendingInputs=[];multiplayer.unsentInputs=[];
   if(!applyGuestSnapshot(snapshot,true))return false;
   keys.clear();pointer={active:false,id:null,startX:0,startY:0,x:0,y:0};mouseAim.seen=false;boostPointerId=null;setBoost(false);
   gameStartedAt=performance.now();lastPlaytimeSeconds=0;multiplayer.deathPending=false;
@@ -826,27 +882,29 @@ function initGuestGame(snapshot){
 
 function syncMultiplayer(force=false){
   if(!multiplayer.active||!multiplayer.joined||!multiplayer.room)return;
-  const angleChanged=!Number.isFinite(multiplayer.lastSentAngle)||Math.abs(angleDelta(multiplayer.lastSentAngle,networkInputAngle))>.002;
-  const strengthChanged=!Number.isFinite(multiplayer.lastSentTurnStrength)||Math.abs(multiplayer.lastSentTurnStrength-networkTurnStrength)>.01;
-  const boostChanged=multiplayer.lastSentBoosting!==boosting;
-  if(!force&&!angleChanged&&!strengthChanged&&!boostChanged&&multiplayer.inputHeartbeat<SETTINGS.networkHeartbeatInterval)return;
+  if(!multiplayer.unsentInputs.length)return;
+  const inputs=multiplayer.unsentInputs.splice(0,SETTINGS.maxInputFramesPerMessage);
+  const latest=inputs[inputs.length-1];
   try{
-    multiplayer.room.send('input',{angle:networkInputAngle,turnStrength:networkTurnStrength,boosting});multiplayer.failures=0;
-    multiplayer.lastSentAngle=networkInputAngle;multiplayer.lastSentTurnStrength=networkTurnStrength;multiplayer.lastSentBoosting=boosting;multiplayer.inputHeartbeat=0;
+    multiplayer.room.send('input',{
+      frames:inputs.map(input=>[input.sequence,input.angle,input.turnStrength,input.boosting?1:0]),
+      angle:latest.angle,turnStrength:latest.turnStrength,boosting:latest.boosting
+    });multiplayer.failures=0;
   }
-  catch{multiplayer.failures++;onlineRoleEl.textContent='RECONNECT';}
+  catch{multiplayer.unsentInputs=inputs.concat(multiplayer.unsentInputs);multiplayer.failures++;onlineRoleEl.textContent='RECONNECT';}
 }
 
 function scheduleMultiplayerSync(dt){
   if(!multiplayer.active)return;
-  multiplayer.syncElapsed+=dt;multiplayer.inputHeartbeat+=dt;
-  if(multiplayer.syncElapsed>=SETTINGS.networkSyncInterval){multiplayer.syncElapsed=0;syncMultiplayer();}
+  multiplayer.syncElapsed+=dt;
+  if(multiplayer.syncElapsed+.000001>=SETTINGS.networkSyncInterval||multiplayer.unsentInputs.length>=3){
+    multiplayer.syncElapsed%=SETTINGS.networkSyncInterval;syncMultiplayer();
+  }
 }
 
 function update(dt){
   if(!player)return;
-  scheduleMultiplayerSync(dt);
-  if(multiplayer.active){updateGuestWorld(dt);return;}
+  if(multiplayer.active){updateGuestWorld(dt);scheduleMultiplayerSync(dt);return;}
   if(dying){
     updateDeathPellets(dt);updateDeathSequence();if(!running)return;
     for(const s of snakes){if(!s.alive)continue;if(s.isHuman)remoteHumanSteering(s,dt);else aiSteering(s,dt);moveSnake(s,dt);eatPellets(s);s.growthFlash=Math.max(0,(s.growthFlash||0)-dt*1.25);s.phaseTime=Math.max(0,s.phaseTime-dt);s.lifeFlash=Math.max(0,s.lifeFlash-dt*1.5);}

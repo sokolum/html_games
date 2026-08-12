@@ -18,7 +18,7 @@ async function waitForHealth(serverOutput) {
   throw new Error(`Realtime server did not become healthy.\n${serverOutput.join("")}`);
 }
 
-test("a real client receives fast authoritative movement snapshots", async (context) => {
+test("a real client receives acknowledged fixed-step movement snapshots", async (context) => {
   const output = [];
   const server = spawn(process.execPath, ["src/index.js"], {
     cwd: new URL("..", import.meta.url),
@@ -42,21 +42,34 @@ test("a real client receives fast authoritative movement snapshots", async (cont
   room.onMessage("membership", () => {});
   room.onMessage("snapshot", (snapshot) => snapshots.push(structuredClone(snapshot)));
   room.send("ready");
-  const deadline = Date.now() + 3_000;
-  while (snapshots.length < 10 && Date.now() < deadline) {
+  const initialDeadline = Date.now() + 3_000;
+  while (snapshots.length < 1 && Date.now() < initialDeadline) {
     await new Promise((resolve) => setTimeout(resolve, 25));
   }
 
-  assert.ok(snapshots.length >= 10, `Expected 10 snapshots, received ${snapshots.length}`);
   const firstSnapshot = snapshots[0];
-  const nextSnapshot = snapshots.at(-1);
   const firstPlayer = firstSnapshot.s.find((snake) => snake.u === room.sessionId);
   assert.ok(firstPlayer);
   assert.equal(firstPlayer.w, 150);
+  let sequence = 1;
+  for (let batch = 0; batch < 6; batch += 1) {
+    room.send("input", {
+      frames: Array.from({ length: 12 }, () => [sequence++, firstPlayer.a, 1, 0]),
+    });
+  }
+
+  const acknowledgementDeadline = Date.now() + 3_000;
+  while (!snapshots.some((snapshot) => snapshot.s.find((snake) => snake.i === firstPlayer.i)?.r >= 60) && Date.now() < acknowledgementDeadline) {
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+
+  const nextSnapshot = snapshots.findLast((snapshot) => snapshot.s.find((snake) => snake.i === firstPlayer.i)?.r >= 60);
+  assert.ok(nextSnapshot, "Expected the server to acknowledge at least 60 input frames");
   const nextPlayer = nextSnapshot.s.find((snake) => snake.i === firstPlayer.i);
   const travelled = Math.hypot(nextPlayer.x - firstPlayer.x, nextPlayer.y - firstPlayer.y);
 
-  assert.ok(nextSnapshot.t - firstSnapshot.t >= 24);
-  assert.ok(travelled >= 55, `Expected at least 55px movement, received ${travelled.toFixed(1)}px`);
-  assert.equal(nextSnapshot.v, 3);
+  assert.ok(nextPlayer.r >= 60);
+  assert.ok(nextSnapshot.t - firstSnapshot.t >= 60);
+  assert.ok(travelled >= 145, `Expected at least 145px movement, received ${travelled.toFixed(1)}px`);
+  assert.equal(nextSnapshot.v, 4);
 });

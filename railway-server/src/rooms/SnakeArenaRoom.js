@@ -6,6 +6,10 @@ const SNAPSHOT_HZ = 20;
 const SIMULATION_HZ = 60;
 const BODY_SNAPSHOT_HZ = 10;
 const PELLET_SNAPSHOT_HZ = 2;
+const FIXED_SIMULATION_STEP_SECONDS = 1 / SIMULATION_HZ;
+const FIXED_SIMULATION_STEP_MS = 1000 / SIMULATION_HZ;
+const MAX_INPUT_FRAMES_PER_MESSAGE = 12;
+const MAX_QUEUED_INPUT_FRAMES = SIMULATION_HZ * 12;
 
 const SETTINGS = {
   worldWidth: 4200,
@@ -58,6 +62,20 @@ const distanceSquared = (first, second) => {
   return dx * dx + dy * dy;
 };
 
+function decodeInputFrame(value) {
+  if (!Array.isArray(value) || value.length < 4) return null;
+  const sequence = Number(value[0]);
+  const angle = Number(value[1]);
+  const turnStrength = Number(value[2]);
+  if (!Number.isSafeInteger(sequence) || sequence < 1 || !Number.isFinite(angle) || Math.abs(angle) > Math.PI * 4) return null;
+  return {
+    sequence,
+    angle: normalizeAngle(angle),
+    turnStrength: Number.isFinite(turnStrength) ? clamp(turnStrength, 0.28, 1) : 1,
+    boosting: value[3] === true || value[3] === 1,
+  };
+}
+
 function cleanName(value) {
   const name = String(value || "").trim().slice(0, 16);
   return name && /^[A-Za-z0-9 _-]+$/.test(name) ? name : "Player";
@@ -86,6 +104,7 @@ export class SnakeArenaRoom extends Room {
   pellets = [];
   nextSnakeId = 1;
   tick = 0;
+  simulationAccumulatorMs = 0;
   snapshotEvery = Math.max(1, Math.round(SIMULATION_HZ / SNAPSHOT_HZ));
   bodySnapshotEvery = Math.max(1, Math.round(SIMULATION_HZ / BODY_SNAPSHOT_HZ));
   pelletSnapshotEvery = Math.max(1, Math.round(SIMULATION_HZ / PELLET_SNAPSHOT_HZ));
@@ -100,8 +119,22 @@ export class SnakeArenaRoom extends Room {
       if (!profile?.active) return;
       const snake = this.snakes.find((entry) => entry.sessionId === client.sessionId);
       if (!snake?.alive) return;
+
+      if (Array.isArray(message?.frames)) {
+        snake.inputMode = "framed";
+        for (const rawFrame of message.frames.slice(0, MAX_INPUT_FRAMES_PER_MESSAGE)) {
+          const frame = decodeInputFrame(rawFrame);
+          if (!frame || frame.sequence <= snake.lastReceivedInputSequence) continue;
+          if (snake.inputQueue.length >= MAX_QUEUED_INPUT_FRAMES) break;
+          snake.inputQueue.push(frame);
+          snake.lastReceivedInputSequence = frame.sequence;
+        }
+        return;
+      }
+
+      snake.inputMode = "legacy";
       const inputAngle = Number(message?.angle);
-      if (Number.isFinite(inputAngle)) snake.targetAngle = normalizeAngle(inputAngle);
+      if (Number.isFinite(inputAngle) && Math.abs(inputAngle) <= Math.PI * 4) snake.targetAngle = normalizeAngle(inputAngle);
       const turnStrength = Number(message?.turnStrength);
       if (Number.isFinite(turnStrength)) snake.turnStrength = clamp(turnStrength, 0.28, 1);
       snake.boostRequested = Boolean(message?.boosting);
@@ -111,8 +144,20 @@ export class SnakeArenaRoom extends Room {
   onCreate() {
     this.seedPellets();
     while (this.snakes.length < TOTAL_SNAKES) this.spawnAI();
-    this.setSimulationInterval((deltaTime) => this.simulate(Math.min(deltaTime / 1000, 0.05)), 1000 / SIMULATION_HZ);
+    this.setSimulationInterval((deltaTime) => this.advanceSimulation(deltaTime), FIXED_SIMULATION_STEP_MS);
     this.setPatchRate(null);
+  }
+
+  advanceSimulation(deltaTimeMs) {
+    const safeDeltaTime = clamp(Number(deltaTimeMs) || 0, 0, 250);
+    this.simulationAccumulatorMs += safeDeltaTime;
+    let simulationSteps = 0;
+    while (this.simulationAccumulatorMs + 0.000001 >= FIXED_SIMULATION_STEP_MS && simulationSteps < 15) {
+      this.simulate(FIXED_SIMULATION_STEP_SECONDS);
+      this.simulationAccumulatorMs -= FIXED_SIMULATION_STEP_MS;
+      simulationSteps += 1;
+    }
+    if (this.simulationAccumulatorMs < 0) this.simulationAccumulatorMs = 0;
   }
 
   onJoin(client, options) {
@@ -252,6 +297,10 @@ export class SnakeArenaRoom extends Room {
       boost: 100,
       boostRequested: false,
       turnStrength: 1,
+      inputMode: isHuman ? "pending" : "ai",
+      inputQueue: [],
+      lastReceivedInputSequence: 0,
+      lastProcessedInputSequence: 0,
       pelletProgress: 0,
       growthFlash: 0,
       aiTimer: 0,
@@ -374,6 +423,17 @@ export class SnakeArenaRoom extends Room {
   steerHuman(snake, deltaTime) {
     const maxTurn = SETTINGS.playerTurnSpeed * snake.turnStrength * deltaTime;
     snake.angle = normalizeAngle(snake.angle + clamp(angleDelta(snake.angle, snake.targetAngle), -maxTurn, maxTurn));
+  }
+
+  applyNextHumanInput(snake) {
+    if (snake.inputMode === "legacy") return true;
+    const input = snake.inputQueue.shift();
+    if (!input) return false;
+    snake.targetAngle = input.angle;
+    snake.turnStrength = input.turnStrength;
+    snake.boostRequested = input.boosting;
+    snake.lastProcessedInputSequence = input.sequence;
+    return true;
   }
 
   moveSnake(snake, deltaTime) {
@@ -540,10 +600,17 @@ export class SnakeArenaRoom extends Room {
     this.tick += 1;
     for (const snake of this.snakes) {
       if (!snake.alive) continue;
-      if (snake.isHuman) this.steerHuman(snake, deltaTime);
-      else this.steerAI(snake, deltaTime);
-      this.moveSnake(snake, deltaTime);
-      this.eatPellets(snake);
+      if (snake.isHuman) {
+        if (this.applyNextHumanInput(snake)) {
+          this.steerHuman(snake, deltaTime);
+          this.moveSnake(snake, deltaTime);
+          this.eatPellets(snake);
+        }
+      } else {
+        this.steerAI(snake, deltaTime);
+        this.moveSnake(snake, deltaTime);
+        this.eatPellets(snake);
+      }
       snake.growthFlash = Math.max(0, snake.growthFlash - deltaTime * 1.25);
       snake.phaseTime = Math.max(0, snake.phaseTime - deltaTime);
     }
@@ -558,7 +625,7 @@ export class SnakeArenaRoom extends Room {
 
   makeSnapshot(includePellets = true, includeDetails = true) {
     return {
-      v: 3,
+      v: 4,
       t: this.tick,
       o: this.activeSessions.length,
       m: ACTIVE_PLAYER_LIMIT,
@@ -569,6 +636,8 @@ export class SnakeArenaRoom extends Room {
         a: Number(snake.angle.toFixed(4)),
         w: Math.round(snake.speed),
         v: snake.alive,
+        z: Number(snake.boost.toFixed(1)),
+        ...(snake.isHuman ? { r: snake.lastProcessedInputSequence } : {}),
         ...(includeDetails ? {
           u: snake.sessionId || "",
           h: snake.isHuman,
@@ -578,7 +647,6 @@ export class SnakeArenaRoom extends Room {
           q: snake.score,
           k: snake.kills,
           l: snake.extraLives,
-          z: Number(snake.boost.toFixed(1)),
           p: snake.pelletProgress,
           g: Number(snake.growthFlash.toFixed(2)),
           f: Number(snake.phaseTime.toFixed(2)),

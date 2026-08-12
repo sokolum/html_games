@@ -130,6 +130,53 @@ test("human steering uses the same analogue turn strength as the client", () => 
   assert.ok(Math.abs(human.angle - 0.06) < 0.000001);
 });
 
+test("framed input is processed once per fixed simulation tick and acknowledged", () => {
+  const room = new SnakeArenaRoom();
+  const human = room.makeSnake({
+    x: 1600,
+    y: 1600,
+    angle: 0,
+    color: "#ff405f",
+    name: "Player",
+    sessionId: "framed-player",
+    isHuman: true,
+  });
+  room.players.set("framed-player", { active: true });
+  room.snakes.push(human);
+  room.messages.input({ sessionId: "framed-player" }, {
+    frames: [
+      [1, 0, 1, 0],
+      [2, 0, 1, 0],
+      [2, Math.PI / 2, 1, 0],
+    ],
+  });
+
+  assert.equal(human.inputQueue.length, 2, "duplicate sequences must be ignored");
+  room.simulate(1 / 60);
+  assert.equal(human.lastProcessedInputSequence, 1);
+  assert.ok(Math.abs(human.x - 1602.5) < 0.001);
+  room.simulate(1 / 60);
+  assert.equal(human.lastProcessedInputSequence, 2);
+  assert.ok(Math.abs(human.x - 1605) < 0.001);
+
+  const snapshot = room.makeSnapshot(false, false);
+  assert.equal(snapshot.s[0].r, 2);
+});
+
+test("the server accumulator advances only in fixed 60 Hz steps", () => {
+  const room = new SnakeArenaRoom();
+  let steps = 0;
+  room.simulate = (deltaTime) => {
+    assert.equal(deltaTime, 1 / 60);
+    steps += 1;
+  };
+
+  room.advanceSimulation(1000 / 30);
+
+  assert.equal(steps, 2);
+  assert.ok(room.simulationAccumulatorMs < 0.000001);
+});
+
 test("the authoritative server advances a human snake at arena speed", () => {
   const room = new SnakeArenaRoom();
   const human = room.makeSnake({
@@ -163,6 +210,8 @@ test("motion snapshots include server speed for smooth client rendering", () => 
 
   const snapshot = room.makeSnapshot(false);
 
-  assert.equal(snapshot.v, 3);
+  assert.equal(snapshot.v, 4);
   assert.equal(snapshot.s[0].w, 150);
+  assert.equal(snapshot.s[0].r, 0);
+  assert.equal(snapshot.s[0].z, 100);
 });
