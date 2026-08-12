@@ -6,7 +6,6 @@ const DEFAULT_ORIGINS = [
   "https://www.4me2play.com",
   "http://localhost:3000",
   "http://localhost:4173",
-  "http://terminal.local:4173",
 ];
 
 function allowedOrigins() {
