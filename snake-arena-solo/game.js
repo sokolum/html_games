@@ -1,4 +1,5 @@
-const SNAKE_ARENA_VERSION = '0.2';
+const SNAKE_ARENA_VERSION = '0.3';
+const PLAYER_NAME_STORAGE_KEY = 'snakeArenaSoloPlayerName';
 const PLAYER_COLOR_STORAGE_KEY = 'snakeArenaSoloPlayerColor';
 const PLAYER_STRIPE_COLOR_STORAGE_KEY = 'snakeArenaSoloStripeColor';
 const PLAYER_GLOW_COLOR_STORAGE_KEY = 'snakeArenaSoloGlowColor';
@@ -9,13 +10,13 @@ const DEFAULT_GLOW_COLOR = '#57d6ff';
 const SETTINGS = {
   worldWidth: 4200,
   worldHeight: 4200,
-  pelletCount: 520,
+  pelletCount: 676,
   aiCount: 18,
   startSegments: 34,
   segmentSpacing: 9,
   baseSpeed: 150,
   boostSpeed: 245,
-  turnSpeed: 3.5,
+  turnSpeed: 5.6,
   headRadius: 11,
   bodyRadius: 9,
   pelletRadius: 4,
@@ -26,6 +27,8 @@ const SETTINGS = {
   boostDrain: 25,
   boostRecharge: 12,
   growthPerPellet: 2,
+  pelletMagnetExtraDiameter: 0.25,
+  pelletMagnetSpeed: 185,
   aiRespawnDelay: 1800
 };
 
@@ -52,6 +55,13 @@ const snakeGlowColorInput = document.getElementById('snakeGlowColor');
 const palettePreview = document.getElementById('palettePreview');
 const colorStatus = document.getElementById('colorStatus');
 const colorSwatches = [...document.querySelectorAll('.colorSwatch')];
+const firstNameInput = document.getElementById('firstName');
+const nameStatus = document.getElementById('nameStatus');
+const scoreLoadStatus = document.getElementById('scoreLoadStatus');
+const menuScores = document.getElementById('menuScores');
+const resultScores = document.getElementById('resultScores');
+const saveStatus = document.getElementById('saveStatus');
+const finalPlaytime = document.getElementById('finalPlaytime');
 
 const COLORS = ['#ff5d7d','#57d6ff','#ffcf4d','#b47cff','#ff8e4f','#49f5a6','#f06cff','#e9ff5e','#72a4ff'];
 const AI_NAMES = ['Viper','Nova','Pixel','Orbit','Cobra','Rex','Blitz','Echo','Mamba','Bolt','Ghost','Fang','Comet','Rogue','Turbo','Venom','Neon','Dash','Sly','Byte','Ziggy','Drift'];
@@ -66,13 +76,19 @@ let snakes = [];
 let pellets = [];
 let particles = [];
 let keys = new Set();
-let pointer = { active:false, x:0, y:0 };
+let pointer = { active:false, id:null, x:0, y:0 };
+let mouseAim = { seen:false, x:0, y:0 };
+let boostPointerId = null;
 let boosting = false;
 let camera = { x: SETTINGS.worldWidth / 2, y: SETTINGS.worldHeight / 2, zoom: 1 };
 let nextId = 1;
 let currentPlayerColor = DEFAULT_PLAYER_COLOR;
 let currentPlayerStripeColor = DEFAULT_STRIPE_COLOR;
 let currentPlayerGlowColor = DEFAULT_GLOW_COLOR;
+let currentPlayerName = '';
+let onlineScores = [];
+let gameStartedAt = 0;
+let lastPlaytimeSeconds = 0;
 
 function resize(){
   dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -129,12 +145,15 @@ function spawnAI(){
 }
 
 function initGame(){
+  const name=cleanPlayerName(firstNameInput.value);
+  if(!name){nameStatus.textContent='Enter a valid first name (maximum 16 characters).';nameStatus.className='formStatus error';firstNameInput.focus();return;}
+  currentPlayerName=name;savePlayerName(name);nameStatus.textContent='Saved player: '+name;nameStatus.className='formStatus success';
   snakes=[]; particles=[]; seedPellets(); nextId=1;
-  player=makeSnake({x:SETTINGS.worldWidth/2,y:SETTINGS.worldHeight/2,color:currentPlayerColor,stripeColor:currentPlayerStripeColor,glowColor:currentPlayerGlowColor,name:'YOU',isPlayer:true});
+  player=makeSnake({x:SETTINGS.worldWidth/2,y:SETTINGS.worldHeight/2,color:currentPlayerColor,stripeColor:currentPlayerStripeColor,glowColor:currentPlayerGlowColor,name:currentPlayerName,isPlayer:true});
   snakes.push(player);
   for(let i=0;i<SETTINGS.aiCount;i++) spawnAI();
   camera.x=player.x; camera.y=player.y; camera.zoom=1;
-  running=true; lastTime=performance.now();
+  running=true; lastTime=performance.now(); gameStartedAt=lastTime; lastPlaytimeSeconds=0;
   menu.classList.add('hidden'); gameOverPanel.classList.add('hidden'); hud.classList.remove('hidden'); leaderboard.classList.remove('hidden');
   if(matchMedia('(pointer:coarse)').matches) boostBtn.classList.remove('hidden');
   requestAnimationFrame(loop);
@@ -144,6 +163,9 @@ function setBoost(v){ boosting=v; boostBtn.classList.toggle('active',v); }
 startBtn.addEventListener('click',initGame);
 restartBtn.addEventListener('click',initGame);
 function cleanPlayerColor(value,fallback=DEFAULT_PLAYER_COLOR){return /^#[0-9a-f]{6}$/i.test(String(value||''))?String(value).toLowerCase():fallback;}
+function cleanPlayerName(value){const name=String(value||'').trim().slice(0,16);return name&&/^[A-Za-z0-9 _-]+$/.test(name)?name:'';}
+function loadSavedName(){try{return cleanPlayerName(localStorage.getItem(PLAYER_NAME_STORAGE_KEY));}catch{return '';}}
+function savePlayerName(value){try{localStorage.setItem(PLAYER_NAME_STORAGE_KEY,value);}catch{}}
 function loadSavedColor(key,fallback){try{return cleanPlayerColor(localStorage.getItem(key),fallback);}catch{return fallback;}}
 function updatePalettePreview(){
   snakeColorInput.value=currentPlayerColor;snakeStripeColorInput.value=currentPlayerStripeColor;snakeGlowColorInput.value=currentPlayerGlowColor;
@@ -157,15 +179,20 @@ for(const swatch of colorSwatches)swatch.addEventListener('click',()=>selectPlay
 snakeColorInput.addEventListener('input',event=>selectPlayerColor(event.target.value));
 snakeStripeColorInput.addEventListener('input',event=>selectStripeColor(event.target.value));
 snakeGlowColorInput.addEventListener('input',event=>selectGlowColor(event.target.value));
-boostBtn.addEventListener('pointerdown',e=>{e.preventDefault();setBoost(true)});
-boostBtn.addEventListener('pointerup',()=>setBoost(false));
-boostBtn.addEventListener('pointercancel',()=>setBoost(false));
+firstNameInput.addEventListener('input',()=>{firstNameInput.value=firstNameInput.value.slice(0,16);nameStatus.textContent='Maximum 16 characters';nameStatus.className='formStatus';});
+boostBtn.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();boostPointerId=e.pointerId;try{boostBtn.setPointerCapture(e.pointerId);}catch{}setBoost(true)});
+function releaseBoost(e){if(boostPointerId!==null&&e.pointerId!==boostPointerId)return;boostPointerId=null;setBoost(false);}
+boostBtn.addEventListener('pointerup',releaseBoost);
+boostBtn.addEventListener('pointercancel',releaseBoost);
 
 window.addEventListener('keydown',e=>{ keys.add(e.key.toLowerCase()); if(e.code==='Space'){e.preventDefault();setBoost(true);} });
 window.addEventListener('keyup',e=>{ keys.delete(e.key.toLowerCase()); if(e.code==='Space')setBoost(false); });
-canvas.addEventListener('pointerdown',e=>{ pointer.active=true; pointer.x=e.clientX; pointer.y=e.clientY; });
-canvas.addEventListener('pointermove',e=>{ if(pointer.active || e.pointerType==='mouse'){ pointer.x=e.clientX; pointer.y=e.clientY; } });
-window.addEventListener('pointerup',()=>pointer.active=false);
+canvas.addEventListener('pointerdown',e=>{if(e.pointerType==='mouse'){mouseAim={seen:true,x:e.clientX,y:e.clientY};return;}if(pointer.active)return;e.preventDefault();pointer={active:true,id:e.pointerId,x:e.clientX,y:e.clientY};try{canvas.setPointerCapture(e.pointerId);}catch{}});
+canvas.addEventListener('pointermove',e=>{if(e.pointerType==='mouse'){mouseAim={seen:true,x:e.clientX,y:e.clientY};return;}if(pointer.active&&e.pointerId===pointer.id){e.preventDefault();pointer.x=e.clientX;pointer.y=e.clientY;}});
+function releaseSteeringPointer(e){if(pointer.active&&e.pointerId===pointer.id){pointer.active=false;pointer.id=null;}}
+window.addEventListener('pointerup',releaseSteeringPointer);
+window.addEventListener('pointercancel',releaseSteeringPointer);
+window.addEventListener('blur',()=>{pointer.active=false;pointer.id=null;boostPointerId=null;setBoost(false);});
 
 function playerSteering(dt){
   let target=null;
@@ -174,8 +201,8 @@ function playerSteering(dt){
   if(left||right||up||down){
     const dx=(right?1:0)-(left?1:0), dy=(down?1:0)-(up?1:0);
     if(dx||dy) target=Math.atan2(dy,dx);
-  } else if(pointer.active || matchMedia('(pointer:fine)').matches){
-    const dx=pointer.x-width/2, dy=pointer.y-height/2;
+  } else if(pointer.active || mouseAim.seen){
+    const aim=pointer.active?pointer:mouseAim, dx=aim.x-width/2, dy=aim.y-height/2;
     if(Math.hypot(dx,dy)>18) target=Math.atan2(dy,dx);
   }
   if(target!=null) player.targetAngle=target;
@@ -231,11 +258,23 @@ function moveSnake(s,dt){
 }
 
 function eatPellets(s){
-  const rr=(SETTINGS.headRadius+8)*(SETTINGS.headRadius+8);
   for(let i=pellets.length-1;i>=0;i--){
-    const p=pellets[i]; if(dist2(s,p)<rr){
+    const p=pellets[i],eatRadius=SETTINGS.headRadius+p.r; if(dist2(s,p)<eatRadius*eatRadius){
       pellets.splice(i,1); s.desiredSegments+=SETTINGS.growthPerPellet; s.score+=p.value;
       if(s.isPlayer){ for(let k=0;k<4;k++) particles.push({x:p.x,y:p.y,vx:rand(-45,45),vy:rand(-45,45),life:.35,color:p.color}); }
+    }
+  }
+}
+
+function attractNearbyPellets(dt){
+  if(!player?.alive)return;
+  for(const p of pellets){
+    const eatRadius=SETTINGS.headRadius+p.r;
+    const magnetRadius=eatRadius+p.r*2*SETTINGS.pelletMagnetExtraDiameter;
+    const dx=player.x-p.x,dy=player.y-p.y,distance=Math.hypot(dx,dy);
+    if(distance>eatRadius&&distance<magnetRadius){
+      const pull=Math.min(distance-eatRadius,SETTINGS.pelletMagnetSpeed*dt);
+      p.x+=dx/distance*pull;p.y+=dy/distance*pull;
     }
   }
 }
@@ -260,6 +299,7 @@ function collisions(){
     if(s.x<=SETTINGS.headRadius||s.y<=SETTINGS.headRadius||s.x>=SETTINGS.worldWidth-SETTINGS.headRadius||s.y>=SETTINGS.worldHeight-SETTINGS.headRadius){ killSnake(s); continue; }
     for(const other of snakes){
       if(!other.alive)continue;
+      if(other===s&&s.isPlayer)continue;
       const start=other===s?14:3;
       for(let i=start;i<other.body.length;i+=2){
         const b=other.body[i], dx=s.x-b.x,dy=s.y-b.y;
@@ -279,7 +319,7 @@ function respawnAI(){
 function update(dt){
   if(!player||!player.alive)return;
   playerSteering(dt);
-  for(const s of snakes){ if(!s.alive)continue; if(!s.isPlayer)aiSteering(s,dt); moveSnake(s,dt); eatPellets(s); }
+  for(const s of snakes){ if(!s.alive)continue; if(!s.isPlayer)aiSteering(s,dt); moveSnake(s,dt); if(s.isPlayer)attractNearbyPellets(dt); eatPellets(s); }
   collisions(); respawnAI();
   while(pellets.length<SETTINGS.pelletCount)pellets.push(makePellet());
   for(let i=particles.length-1;i>=0;i--){const p=particles[i];p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=dt;if(p.life<=0)particles.splice(i,1);}
@@ -303,11 +343,19 @@ function visible(x,y,pad=60){ const p=worldToScreen(x,y); return p.x>-pad&&p.y>-
 
 function drawBackground(){
   ctx.fillStyle='#03060b';ctx.fillRect(0,0,width,height);
-  const grid=70*camera.zoom;
-  const ox=(((-camera.x*camera.zoom+width/2)%grid)+grid)%grid;
-  const oy=(((-camera.y*camera.zoom+height/2)%grid)+grid)%grid;
-  ctx.strokeStyle='rgba(100,150,180,.055)';ctx.lineWidth=1;
-  ctx.beginPath(); for(let x=ox;x<width;x+=grid){ctx.moveTo(x,0);ctx.lineTo(x,height)} for(let y=oy;y<height;y+=grid){ctx.moveTo(0,y);ctx.lineTo(width,y)} ctx.stroke();
+  const radius=38*camera.zoom,hStep=Math.sqrt(3)*radius,vStep=1.5*radius;
+  const worldLeft=camera.x-width/(2*camera.zoom)-radius*2,worldTop=camera.y-height/(2*camera.zoom)-radius*2;
+  const firstRow=Math.floor(worldTop/(1.5*38)),lastRow=firstRow+Math.ceil(height/vStep)+4;
+  ctx.strokeStyle='rgba(76,190,220,.095)';ctx.lineWidth=1;
+  ctx.beginPath();
+  for(let row=firstRow;row<=lastRow;row++){
+    const cy=row*1.5*38,startCol=Math.floor((worldLeft-(row&1)*Math.sqrt(3)*19)/(Math.sqrt(3)*38));
+    for(let col=startCol;col<startCol+Math.ceil(width/hStep)+4;col++){
+      const cx=col*Math.sqrt(3)*38+(row&1)*Math.sqrt(3)*19,s=worldToScreen(cx,cy);
+      for(let side=0;side<6;side++){const a=Math.PI/6+side*Math.PI/3,x=s.x+Math.cos(a)*radius,y=s.y+Math.sin(a)*radius;if(side===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);}ctx.closePath();
+    }
+  }
+  ctx.stroke();
   const tl=worldToScreen(0,0), br=worldToScreen(SETTINGS.worldWidth,SETTINGS.worldHeight);
   ctx.strokeStyle='rgba(255,80,95,.5)';ctx.lineWidth=3;ctx.strokeRect(tl.x,tl.y,br.x-tl.x,br.y-tl.y);
 }
@@ -315,7 +363,7 @@ function drawBackground(){
 function drawPellets(time){
   for(const p of pellets){
     if(!visible(p.x,p.y,20))continue;const s=worldToScreen(p.x,p.y);const pulse=1+Math.sin(time*.004+p.pulse)*.13;
-    ctx.beginPath();ctx.fillStyle=p.color;ctx.shadowColor=p.color;ctx.shadowBlur=p.deathDrop?10+p.value*.85:p.value>=10?22:p.value>=5?15:9;ctx.arc(s.x,s.y,p.r*camera.zoom*pulse,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.fillStyle=p.color;ctx.shadowColor=p.color;ctx.shadowBlur=p.deathDrop?14+p.value:p.value>=10?30:p.value>=5?23:16;ctx.arc(s.x,s.y,p.r*camera.zoom*pulse,0,Math.PI*2);ctx.fill();
     if(!p.deathDrop&&p.value>=5){ctx.beginPath();ctx.strokeStyle=p.value>=10?'rgba(255,255,255,.9)':'rgba(255,255,255,.58)';ctx.lineWidth=(p.value>=10?2:1)*camera.zoom;ctx.arc(s.x,s.y,(p.r+2)*camera.zoom*pulse,0,Math.PI*2);ctx.stroke();}
     if(p.deathDrop){ctx.beginPath();ctx.fillStyle='rgba(255,255,255,.58)';ctx.arc(s.x-p.r*.24,s.y-p.r*.24,Math.max(1.2,p.r*.19)*camera.zoom,0,Math.PI*2);ctx.fill();}
   }
@@ -349,6 +397,27 @@ function drawMiniMap(){
   for(const s of snakes){if(!s.alive)continue;ctx.fillStyle=s.isPlayer?currentPlayerGlowColor:'rgba(87,168,255,.72)';ctx.fillRect(x+s.x/SETTINGS.worldWidth*mw-1,y+s.y/SETTINGS.worldHeight*mh-1,s.isPlayer?4:2,s.isPlayer?4:2);}
 }
 
+function formatPlaytime(seconds){const safe=Math.max(0,Number(seconds)||0);return `${Math.floor(safe/60)}:${String(Math.floor(safe%60)).padStart(2,'0')}`;}
+function formatScoreDate(value){const date=new Date(value);return Number.isNaN(date.getTime())?'—':date.toLocaleDateString(undefined,{year:'2-digit',month:'2-digit',day:'2-digit'});}
+function parsePlayerPalette(value){const colors=String(value||'').split(',').filter(color=>/^#[0-9a-f]{6}$/i.test(color));return colors.length===3?colors:[colors[0]||'#ff405f',colors[0]||'#ffcf4d',colors[0]||'#57d6ff'];}
+function renderOnlineScores(){
+  for(const body of [menuScores,resultScores]){
+    body.replaceChildren();
+    if(!onlineScores.length){const row=document.createElement('tr'),cell=document.createElement('td');cell.colSpan=7;cell.className='emptyScore';cell.textContent='No SOLO scores yet — take first place!';row.appendChild(cell);body.appendChild(row);continue;}
+    onlineScores.forEach((entry,index)=>{const row=document.createElement('tr');const values=[index+1,entry.player_name,entry.score,entry.kills,entry.length,formatPlaytime(entry.playtime_seconds),formatScoreDate(entry.created_at)];for(const [cellIndex,value] of values.entries()){const cell=document.createElement('td');cell.textContent=String(value);if(cellIndex===1){const palette=parsePlayerPalette(entry.player_color);cell.style.background=`linear-gradient(90deg,${palette.join(',')})`;cell.style.backgroundClip='text';cell.style.webkitBackgroundClip='text';cell.style.color='transparent';cell.style.textShadow=`0 0 9px ${palette[2]}`;}row.appendChild(cell);}body.appendChild(row);});
+  }
+}
+async function loadOnlineScores(){
+  scoreLoadStatus.textContent='Loading scores...';
+  try{const response=await fetch('/api/highscores/snake-arena-solo',{cache:'no-store'});if(!response.ok)throw new Error('Score load failed: '+response.status);onlineScores=await response.json();renderOnlineScores();scoreLoadStatus.textContent=onlineScores.length?'Worldwide SOLO ranking':'Be the first player on the board';}
+  catch(error){console.error(error);onlineScores=[];renderOnlineScores();scoreLoadStatus.textContent='Scores are temporarily unavailable';}
+}
+async function saveOnlineScore(){
+  saveStatus.textContent='Saving score...';saveStatus.className='formStatus';
+  try{const response=await fetch('/api/highscores/snake-arena-solo',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({player_name:currentPlayerName,player_color:[currentPlayerColor,currentPlayerStripeColor,currentPlayerGlowColor].join(','),score:player.score,kills:player.kills,length:player.desiredSegments,playtime_seconds:lastPlaytimeSeconds})});if(!response.ok)throw new Error('Score save failed: '+response.status);saveStatus.textContent='Score saved online';saveStatus.className='formStatus success';await loadOnlineScores();}
+  catch(error){console.error(error);saveStatus.textContent='Score could not be saved';saveStatus.className='formStatus error';}
+}
+
 function render(time){drawBackground();drawPellets(time);const sorted=snakes.filter(s=>s.alive).sort((a,b)=>a.isPlayer?1:b.isPlayer?-1:0);for(const s of sorted)drawSnake(s);drawParticles();if(width>760)drawMiniMap();}
 
 function loop(now){
@@ -360,13 +429,18 @@ function loop(now){
 
 function endGame(){
   running=false;setBoost(false);
-  finalScore.textContent=player.score;finalKills.textContent=player.kills;finalLength.textContent=player.desiredSegments;
+  lastPlaytimeSeconds=Math.max(1,Math.floor((performance.now()-gameStartedAt)/1000));
+  finalScore.textContent=player.score;finalKills.textContent=player.kills;finalLength.textContent=player.desiredSegments;finalPlaytime.textContent=formatPlaytime(lastPlaytimeSeconds);
   hud.classList.add('hidden');leaderboard.classList.add('hidden');boostBtn.classList.add('hidden');gameOverPanel.classList.remove('hidden');
+  void saveOnlineScore();
 }
 
 render(0);
 currentPlayerColor=loadSavedColor(PLAYER_COLOR_STORAGE_KEY,DEFAULT_PLAYER_COLOR);
 currentPlayerStripeColor=loadSavedColor(PLAYER_STRIPE_COLOR_STORAGE_KEY,DEFAULT_STRIPE_COLOR);
 currentPlayerGlowColor=loadSavedColor(PLAYER_GLOW_COLOR_STORAGE_KEY,DEFAULT_GLOW_COLOR);
+currentPlayerName=loadSavedName();
+if(currentPlayerName){firstNameInput.value=currentPlayerName;nameStatus.textContent='Saved player: '+currentPlayerName;nameStatus.className='formStatus success';}
 selectPlayerColor(currentPlayerColor);selectStripeColor(currentPlayerStripeColor);selectGlowColor(currentPlayerGlowColor);
+void loadOnlineScores();
 console.info(`Snake Arena v${SNAKE_ARENA_VERSION}`);

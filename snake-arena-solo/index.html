@@ -4,36 +4,39 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <meta name="theme-color" content="#080313">
-  <title>Snake Arena SOLO v0.2</title>
-  <link rel="stylesheet" href="./style.css?v=0.2">
+  <title>Snake Arena SOLO v0.3</title>
+  <link rel="stylesheet" href="./style.css?v=0.3">
 </head>
 <body>
   <main id="app">
     <canvas id="game" aria-label="Snake Arena SOLO game"></canvas>
 
-    <section id="hud" class="hud hidden">
-      <div class="hudBlock"><span class="label">Score</span><strong id="score">0</strong></div>
-      <div class="hudBlock"><span class="label">Length</span><strong id="length">0</strong></div>
-      <div class="hudBlock"><span class="label">Kills</span><strong id="kills">0</strong></div>
-      <div class="hudBlock boostHud"><span class="label">Boost</span><div class="boostBar"><span id="boostFill"></span></div></div>
-    </section>
-
     <section id="leaderboard" class="leaderboard hidden">
       <div class="boardTitle"><span>SOLO ARENA</span><span>AI RIVALS</span></div>
+      <section id="hud" class="hud">
+        <div class="hudBlock"><span class="label">Score</span><strong id="score">0</strong></div>
+        <div class="hudBlock"><span class="label">Length</span><strong id="length">0</strong></div>
+        <div class="hudBlock"><span class="label">Kills</span><strong id="kills">0</strong></div>
+        <div class="hudBlock boostHud"><span class="label">Boost</span><div class="boostBar"><span id="boostFill"></span></div></div>
+      </section>
       <ol id="leaders"></ol>
     </section>
 
     <section id="menu" class="overlay">
-      <div class="panel heroPanel">
-        <div class="eyebrow">HTML Games • v0.2 · SOLO</div>
+      <div class="panel heroPanel arenaPanel">
+        <div class="eyebrow">HTML Games • v0.3 · SOLO</div>
         <h1>Snake <span>Arena SOLO</span></h1>
-        <p class="intro">The original solo arena, redesigned in the v0.21 arcade style. Arena pellets are worth 1, 5 or 10 points. Defeated snakes scatter larger drops worth 1–20 points.</p>
+        <div class="menuGrid"><div class="menuMain">
+        <p class="intro">The original solo arena, redesigned in the v0.21 arcade style. Glowing pellets are worth 1, 5 or 10 points and are magnetically collected near your head.</p>
         <div class="controls">
           <div><b>Desktop</b><span>Mouse or WASD / Arrow keys</span></div>
           <div><b>Mobile</b><span>Touch and drag to steer</span></div>
           <div><b>Boost</b><span>Hold Space or the BOOST button</span></div>
         </div>
         <div class="soloRule"><b>SOLO GAME</b><span>18 computer-controlled rivals. No multiplayer connection.</span></div>
+        <label class="nameField" for="firstName">First name</label>
+        <input id="firstName" class="nameInput" maxlength="16" autocomplete="given-name" placeholder="Your name" aria-describedby="nameStatus">
+        <div id="nameStatus" class="formStatus">Maximum 16 characters</div>
         <div class="colorSelector" aria-labelledby="snakeColorLabel">
           <div class="colorSelectorHead"><span id="snakeColorLabel">Snake palette</span><span id="colorStatus">Main · Stripe · Glow</span></div>
           <div class="colorOptions">
@@ -53,6 +56,12 @@
         </div>
         <button id="startBtn" class="primary">START SOLO ARENA</button>
         <a class="back" href="/">← Back to games</a>
+        </div>
+        <section class="onlineBoard" aria-labelledby="topScoresTitle">
+          <div class="boardHeading"><h2 id="topScoresTitle">Top 50 SOLO</h2><span>Online</span></div>
+          <div id="scoreLoadStatus" class="scoreStatus">Loading scores...</div>
+          <div class="scoreScroll"><table><thead><tr><th>#</th><th>Player</th><th>Score</th><th>Kills</th><th>Length</th><th>Time</th><th>Date</th></tr></thead><tbody id="menuScores"></tbody></table></div>
+        </section></div>
       </div>
     </section>
 
@@ -64,15 +73,21 @@
           <div><span>Score</span><strong id="finalScore">0</strong></div>
           <div><span>Kills</span><strong id="finalKills">0</strong></div>
           <div><span>Length</span><strong id="finalLength">0</strong></div>
+          <div><span>Playtime</span><strong id="finalPlaytime">0:00</strong></div>
         </div>
+        <div id="saveStatus" class="formStatus">Saving score...</div>
         <button id="restartBtn" class="primary">PLAY AGAIN</button>
         <a class="back" href="/">← Back to games</a>
+        <section class="onlineBoard resultBoard" aria-labelledby="resultScoresTitle">
+          <div class="boardHeading"><h3 id="resultScoresTitle">Top 50 SOLO</h3><span>Online</span></div>
+          <div class="scoreScroll"><table><thead><tr><th>#</th><th>Player</th><th>Score</th><th>Kills</th><th>Length</th><th>Time</th><th>Date</th></tr></thead><tbody id="resultScores"></tbody></table></div>
+        </section>
       </div>
     </section>
 
     <button id="boostBtn" class="boostButton hidden" aria-label="Boost">BOOST</button>
     <div id="rotateHint" class="rotateHint hidden">Rotate your device to landscape</div>
   </main>
-  <script src="./game.js?v=0.2"></script>
+  <script src="./game.js?v=0.3"></script>
 </body>
 </html>
