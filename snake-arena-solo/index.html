@@ -4,8 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <meta name="theme-color" content="#080313">
-  <title>Snake Arena SOLO v0.3</title>
-  <link rel="stylesheet" href="./style.css?v=0.3">
+  <title>Snake Arena SOLO v0.4</title>
+  <link rel="stylesheet" href="./style.css?v=0.4">
 </head>
 <body>
   <main id="app">
@@ -17,28 +17,31 @@
         <div class="hudBlock"><span class="label">Score</span><strong id="score">0</strong></div>
         <div class="hudBlock"><span class="label">Length</span><strong id="length">0</strong></div>
         <div class="hudBlock"><span class="label">Kills</span><strong id="kills">0</strong></div>
-        <div class="hudBlock boostHud"><span class="label">Boost</span><div class="boostBar"><span id="boostFill"></span></div></div>
+        <div class="hudBlock boostHud"><span class="label">Boost length</span><strong id="boostLength">0</strong><div class="boostBar"><span id="boostFill"></span></div></div>
       </section>
-      <ol id="leaders"></ol>
+      <div class="arenaIntel">
+        <canvas id="radar" class="radar" width="120" height="120" aria-label="Arena radar"></canvas>
+        <ol id="leaders"></ol>
+      </div>
     </section>
 
     <section id="menu" class="overlay">
       <div class="panel heroPanel arenaPanel">
-        <div class="eyebrow">HTML Games • v0.3 · SOLO</div>
+        <div class="eyebrow">HTML Games • v0.4 · SOLO</div>
         <h1>Snake <span>Arena SOLO</span></h1>
         <div class="menuGrid"><div class="menuMain">
-        <p class="intro">The original solo arena, redesigned in the v0.21 arcade style. Glowing pellets are worth 1, 5 or 10 points and are magnetically collected near your head.</p>
+        <p class="intro">Sharper SOLO steering with 40% more glowing, gently moving pellets. Extra body length is your boost fuel.</p>
         <div class="controls">
           <div><b>Desktop</b><span>Mouse or WASD / Arrow keys</span></div>
           <div><b>Mobile</b><span>Touch and drag to steer</span></div>
-          <div><b>Boost</b><span>Hold Space or the BOOST button</span></div>
+          <div><b>Boost</b><span>Extra length powers Space or BOOST</span></div>
         </div>
         <div class="soloRule"><b>SOLO GAME</b><span>18 computer-controlled rivals. No multiplayer connection.</span></div>
         <label class="nameField" for="firstName">First name</label>
         <input id="firstName" class="nameInput" maxlength="16" autocomplete="given-name" placeholder="Your name" aria-describedby="nameStatus">
         <div id="nameStatus" class="formStatus">Maximum 16 characters</div>
         <div class="colorSelector" aria-labelledby="snakeColorLabel">
-          <div class="colorSelectorHead"><span id="snakeColorLabel">Snake palette</span><span id="colorStatus">Main · Stripe · Glow</span></div>
+          <div class="colorSelectorHead"><span id="snakeColorLabel">Snake segment colors</span><span id="colorStatus">Color 1 · Color 2 · Glow</span></div>
           <div class="colorOptions">
             <button class="colorSwatch" type="button" data-color="#ff405f" aria-label="Red" style="--swatch:#ff405f"></button>
             <button class="colorSwatch" type="button" data-color="#ff4fd8" aria-label="Magenta" style="--swatch:#ff4fd8"></button>
@@ -46,10 +49,10 @@
             <button class="colorSwatch" type="button" data-color="#49f5a6" aria-label="Green" style="--swatch:#49f5a6"></button>
             <button class="colorSwatch" type="button" data-color="#ffcf4d" aria-label="Amber" style="--swatch:#ffcf4d"></button>
             <button class="colorSwatch" type="button" data-color="#b47cff" aria-label="Purple" style="--swatch:#b47cff"></button>
-            <label class="customColor">MAIN <input id="snakeColor" type="color" value="#ff405f" aria-label="Main snake color"></label>
+            <label class="customColor">COLOR 1 <input id="snakeColor" type="color" value="#ff405f" aria-label="First snake segment color"></label>
           </div>
           <div class="paletteExtras">
-            <label class="paletteColor">STRIPE <input id="snakeStripeColor" type="color" value="#ffcf4d" aria-label="Snake stripe color"></label>
+            <label class="paletteColor">COLOR 2 <input id="snakeStripeColor" type="color" value="#ffcf4d" aria-label="Second snake segment color"></label>
             <label class="paletteColor">GLOW <input id="snakeGlowColor" type="color" value="#57d6ff" aria-label="Snake glow color"></label>
             <span id="palettePreview" class="palettePreview" aria-label="Selected snake palette"></span>
           </div>
@@ -88,6 +91,6 @@
     <button id="boostBtn" class="boostButton hidden" aria-label="Boost">BOOST</button>
     <div id="rotateHint" class="rotateHint hidden">Rotate your device to landscape</div>
   </main>
-  <script src="./game.js?v=0.3"></script>
+  <script src="./game.js?v=0.4"></script>
 </body>
 </html>
