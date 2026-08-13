@@ -43,18 +43,18 @@
     .game:hover,.game:focus-visible{transform:translateY(-4px);outline:none}
     .game::before{content:"";position:absolute;inset:-30%;opacity:.16;filter:blur(12px);pointer-events:none}
     .snake::before{background:radial-gradient(circle,var(--green),transparent 58%)}
-    .pong::before{background:radial-gradient(circle,var(--pink),transparent 58%)}
+    .pong::before{background:radial-gradient(circle,var(--pink),transparent 58%)}\n    .solo::before{background:radial-gradient(circle,var(--purple),transparent 58%)}
     .snake:hover{border-color:rgba(99,255,155,.65);box-shadow:0 26px 70px rgba(0,0,0,.42),0 0 28px rgba(99,255,155,.16)}
-    .pong:hover{border-color:rgba(255,91,138,.65);box-shadow:0 26px 70px rgba(0,0,0,.42),0 0 28px rgba(255,91,138,.16)}
+    .pong:hover{border-color:rgba(255,91,138,.65);box-shadow:0 26px 70px rgba(0,0,0,.42),0 0 28px rgba(255,91,138,.16)}\n    .solo:hover{border-color:rgba(138,92,255,.75);box-shadow:0 26px 70px rgba(0,0,0,.42),0 0 28px rgba(138,92,255,.20)}
     .top{position:relative;z-index:1}
     .eyebrow{color:var(--muted);font-size:12px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;margin-bottom:12px}
     .game h2{margin:0;font-size:clamp(34px,5vw,58px);font-weight:900;line-height:1;text-transform:uppercase;letter-spacing:.06em}
     .snake h2{color:var(--green);text-shadow:0 0 20px rgba(99,255,155,.35)}
-    .pong h2{color:#fff;text-shadow:0 0 20px rgba(56,215,255,.35)}
+    .pong h2{color:#fff;text-shadow:0 0 20px rgba(56,215,255,.35)}\n    .solo h2{color:var(--purple);text-shadow:0 0 20px rgba(138,92,255,.45)}
     .duo{font-size:.52em;vertical-align:middle;color:var(--pink);letter-spacing:.12em}
     .desc{position:relative;z-index:1;margin-top:18px;color:var(--muted);font-size:15px;line-height:1.5;max-width:90%}
     .play{position:relative;z-index:1;margin-top:28px;display:inline-flex;align-items:center;gap:10px;font-size:14px;font-weight:900;letter-spacing:.08em;text-transform:uppercase}
-    .snake .play{color:var(--green)} .pong .play{color:var(--pink)}
+    .snake .play{color:var(--green)} .pong .play{color:var(--pink)} .solo .play{color:var(--purple)}
     .arrow{font-size:20px;transform:translateY(-1px)}
     .footer{text-align:center;margin-top:24px;color:rgba(255,255,255,.34);font-size:11px;letter-spacing:.08em;text-transform:uppercase}
     @media(max-width:760px){
