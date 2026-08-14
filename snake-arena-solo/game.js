@@ -1,4 +1,4 @@
-const SNAKE_ARENA_VERSION = '0.6';
+const SNAKE_ARENA_VERSION = '0.7';
 const PLAYER_NAME_STORAGE_KEY = 'snakeArenaSoloPlayerName';
 const PLAYER_COLOR_STORAGE_KEY = 'snakeArenaSoloPlayerColor';
 const PLAYER_STRIPE_COLOR_STORAGE_KEY = 'snakeArenaSoloStripeColor';
@@ -10,8 +10,8 @@ const DEFAULT_GLOW_COLOR = '#57d6ff';
 const SETTINGS = {
   worldWidth: 4200,
   worldHeight: 4200,
-  pelletCount: 728,
-  aiCount: 18,
+  pelletCount: 1456,
+  aiCount: 27,
   startSegments: 18,
   segmentSpacing: 7,
   baseSpeed: 150,
@@ -137,7 +137,7 @@ function makeSnake({x,y,color,stripeColor=color,glowColor=color,name,isPlayer=fa
   return {
     id:nextId++, x,y,angle,targetAngle:angle, color,stripeColor,glowColor,name,isPlayer, alive:true,
     body, desiredSegments:SETTINGS.startSegments, speed:SETTINGS.baseSpeed,
-    score:0,kills:0,boost:0, aiTimer:0, aiBias:rand(-0.8,0.8), respawnAt:0
+    score:0,kills:0,boost:0,storedPelletPoints:0,massSegments:[],aiTimer:0,aiBias:rand(-0.8,0.8),respawnAt:0
   };
 }
 
@@ -162,6 +162,8 @@ function spawnAI(){
   s.desiredSegments=SETTINGS.startSegments+((Math.random()*45)|0);
   while(s.body.length<s.desiredSegments){ const t=s.body[s.body.length-1]; s.body.push({x:t.x,y:t.y}); }
   s.score=Math.max(0,(s.desiredSegments-SETTINGS.startSegments)*5);
+  s.storedPelletPoints=s.score;
+  s.massSegments=Array.from({length:s.desiredSegments-SETTINGS.startSegments},()=>5);
   snakes.push(s);
 }
 
@@ -264,7 +266,10 @@ function moveSnake(s,dt){
     s.speed=boostNow?SETTINGS.boostSpeed:SETTINGS.baseSpeed;
     if(boostNow){
       boostDrainProgress+=SETTINGS.boostSegmentDrainRate*dt;
-      while(boostDrainProgress>=1&&s.desiredSegments>SETTINGS.minimumBoostSegments){s.desiredSegments--;boostDrainProgress--;}
+      while(boostDrainProgress>=1&&s.desiredSegments>SETTINGS.minimumBoostSegments){
+        s.desiredSegments--;boostDrainProgress--;
+        s.storedPelletPoints=Math.max(0,s.storedPelletPoints-(s.massSegments.shift()||0));
+      }
       if(s.desiredSegments<=SETTINGS.minimumBoostSegments)setBoost(false);
     } else boostDrainProgress=0;
   }
@@ -283,7 +288,8 @@ function moveSnake(s,dt){
 function eatPellets(s){
   for(let i=pellets.length-1;i>=0;i--){
     const p=pellets[i],eatRadius=SETTINGS.headRadius+p.r; if(dist2(s,p)<eatRadius*eatRadius){
-      pellets.splice(i,1); s.desiredSegments+=SETTINGS.growthPerPellet; s.score+=p.value;
+      pellets.splice(i,1);s.desiredSegments+=SETTINGS.growthPerPellet;s.score+=p.value;s.storedPelletPoints+=p.value;
+      for(let segment=0;segment<SETTINGS.growthPerPellet;segment++)s.massSegments.push(p.value/SETTINGS.growthPerPellet);
       if(s.isPlayer){ for(let k=0;k<4;k++) particles.push({x:p.x,y:p.y,vx:rand(-45,45),vy:rand(-45,45),life:.35,color:p.color}); }
     }
   }
@@ -302,15 +308,35 @@ function attractNearbyPellets(dt){
   }
 }
 
+function deathDropValues(totalPoints){
+  const values=[];let remaining=Math.max(0,Math.round(totalPoints));
+  while(remaining>0){const value=Math.min(20,remaining);values.push(value);remaining-=value;}
+  return values;
+}
+
+function updateTransientEffects(dt){
+  const damping=Math.exp(-3.8*dt);
+  for(const p of pellets){
+    if(!p.deathDrop||(!p.vx&&!p.vy))continue;
+    p.x=clamp(p.x+p.vx*dt,10,SETTINGS.worldWidth-10);p.y=clamp(p.y+p.vy*dt,10,SETTINGS.worldHeight-10);
+    p.vx*=damping;p.vy*=damping;
+  }
+  for(let i=particles.length-1;i>=0;i--){const p=particles[i];p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=dt;if(p.life<=0)particles.splice(i,1);}
+}
+
 function killSnake(victim,killer=null){
   if(!victim.alive)return;
   victim.alive=false;
-  if(killer && killer!==victim){ killer.kills++; killer.score+=100; killer.desiredSegments+=4; }
-  for(let i=2;i<victim.body.length;i+=2){
-    const b=victim.body[i],value=Math.floor(rand(1,21));
-    const colors=[victim.color,victim.stripeColor||victim.color,victim.glowColor||victim.color];
-    const orb=makePellet(b.x+rand(-6,6),b.y+rand(-6,6),value,colors[i%colors.length]);
+  if(killer&&killer!==victim){
+    killer.kills++;killer.score+=100;killer.desiredSegments+=4;killer.storedPelletPoints+=100;
+    for(let segment=0;segment<4;segment++)killer.massSegments.push(25);
+  }
+  const dropValues=deathDropValues(victim.storedPelletPoints),colors=[victim.color,victim.stripeColor||victim.color,victim.glowColor||victim.color];
+  for(let i=0;i<dropValues.length;i++){
+    const bodyIndex=Math.min(victim.body.length-1,Math.floor((i+.5)/Math.max(1,dropValues.length)*victim.body.length)),b=victim.body[bodyIndex]||{x:victim.x,y:victim.y},value=dropValues[i];
+    const orb=makePellet(b.x+rand(-5,5),b.y+rand(-5,5),value,colors[i%colors.length]);
     const valueRatio=(value-1)/19;orb.r=SETTINGS.deathPelletMinRadius+(SETTINGS.deathPelletMaxRadius-SETTINGS.deathPelletMinRadius)*valueRatio;orb.deathDrop=true;pellets.push(orb);
+    const outward=Math.atan2(b.y-victim.y,b.x-victim.x)+rand(-.72,.72),speed=rand(80,175);orb.vx=Math.cos(outward)*speed;orb.vy=Math.sin(outward)*speed;
   }
   if(victim.isPlayer){
     deathPending=true;deathEndsAt=performance.now()+SETTINGS.deathSceneDuration;
@@ -344,12 +370,13 @@ function respawnAI(){
 }
 
 function update(dt){
-  if(!player||!player.alive)return;
+  if(!player)return;
+  if(!player.alive){updateTransientEffects(dt);return;}
   playerSteering(dt);
   for(const s of snakes){ if(!s.alive)continue; if(!s.isPlayer)aiSteering(s,dt); moveSnake(s,dt); if(s.isPlayer)attractNearbyPellets(dt); eatPellets(s); }
   collisions(); respawnAI();
   while(pellets.length<SETTINGS.pelletCount)pellets.push(makePellet());
-  for(let i=particles.length-1;i>=0;i--){const p=particles[i];p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=dt;if(p.life<=0)particles.splice(i,1);}
+  updateTransientEffects(dt);
   camera.x+=(player.x-camera.x)*Math.min(1,dt*6); camera.y+=(player.y-camera.y)*Math.min(1,dt*6);
   const targetZoom=clamp(1-(player.desiredSegments-SETTINGS.startSegments)/500,.64,1);
   camera.zoom+=(targetZoom-camera.zoom)*Math.min(1,dt*2.5);
@@ -414,9 +441,8 @@ function drawPellets(time){
 }
 
 function drawSnake(s){
-  if(!s.alive&&!(s.isPlayer&&deathPending))return;
+  if(!s.alive)return;
   ctx.save();
-  if(!s.alive)ctx.globalAlpha=.62;
   const growth=clamp((s.desiredSegments-SETTINGS.startSegments)/180,0,1),baseRadius=SETTINGS.bodyRadius+growth*3.2;
   ctx.shadowColor=s.glowColor||s.color;ctx.shadowBlur=s.isPlayer?3:1;
   for(let i=s.body.length-1;i>=1;i--){
@@ -461,7 +487,7 @@ async function saveOnlineScore(){
   catch(error){console.error(error);saveStatus.textContent='Score could not be saved';saveStatus.className='formStatus error';}
 }
 
-function render(time){drawBackground();drawPellets(time);const sorted=snakes.filter(s=>s.alive||(s.isPlayer&&deathPending)).sort((a,b)=>a.isPlayer?1:b.isPlayer?-1:0);for(const s of sorted)drawSnake(s);drawParticles();drawMiniMap();}
+function render(time){drawBackground();drawPellets(time);const sorted=snakes.filter(s=>s.alive).sort((a,b)=>a.isPlayer?1:b.isPlayer?-1:0);for(const s of sorted)drawSnake(s);drawParticles();drawMiniMap();}
 
 function loop(now){
   if(!running)return;
