@@ -1,4 +1,4 @@
-const SNAKE_ARENA_VERSION = '0.7';
+const SNAKE_ARENA_VERSION = '0.8';
 const PLAYER_NAME_STORAGE_KEY = 'snakeArenaSoloPlayerName';
 const PLAYER_COLOR_STORAGE_KEY = 'snakeArenaSoloPlayerColor';
 const PLAYER_STRIPE_COLOR_STORAGE_KEY = 'snakeArenaSoloStripeColor';
@@ -36,6 +36,7 @@ const SETTINGS = {
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
+const app = document.getElementById('app');
 const menu = document.getElementById('menu');
 const gameOverPanel = document.getElementById('gameOver');
 const startBtn = document.getElementById('startBtn');
@@ -81,7 +82,7 @@ let snakes = [];
 let pellets = [];
 let particles = [];
 let keys = new Set();
-let pointer = { active:false, id:null, x:0, y:0 };
+let pointer = { active:false, id:null, x:0, y:0, lastX:0, lastY:0, aimX:0, aimY:0 };
 let mouseAim = { seen:false, x:0, y:0 };
 let boostPointerId = null;
 let boosting = false;
@@ -210,8 +211,25 @@ boostBtn.addEventListener('pointercancel',releaseBoost);
 
 window.addEventListener('keydown',e=>{ keys.add(e.key.toLowerCase()); if(e.code==='Space'){e.preventDefault();setBoost(true);} });
 window.addEventListener('keyup',e=>{ keys.delete(e.key.toLowerCase()); if(e.code==='Space')setBoost(false); });
-canvas.addEventListener('pointerdown',e=>{if(e.pointerType==='mouse'){mouseAim={seen:true,x:e.clientX,y:e.clientY};return;}if(pointer.active)return;e.preventDefault();pointer={active:true,id:e.pointerId,x:e.clientX,y:e.clientY};try{canvas.setPointerCapture(e.pointerId);}catch{}});
-canvas.addEventListener('pointermove',e=>{if(e.pointerType==='mouse'){mouseAim={seen:true,x:e.clientX,y:e.clientY};return;}if(pointer.active&&e.pointerId===pointer.id){e.preventDefault();pointer.x=e.clientX;pointer.y=e.clientY;}});
+app.addEventListener('pointerdown',e=>{
+  if(!running||!player?.alive||boostBtn.contains(e.target))return;
+  if(e.pointerType==='mouse'){mouseAim={seen:true,x:e.clientX,y:e.clientY};return;}
+  if(pointer.active)return;
+  e.preventDefault();
+  const initialAimDistance=48;
+  pointer={active:true,id:e.pointerId,x:e.clientX,y:e.clientY,lastX:e.clientX,lastY:e.clientY,aimX:Math.cos(player.angle)*initialAimDistance,aimY:Math.sin(player.angle)*initialAimDistance};
+  try{app.setPointerCapture(e.pointerId);}catch{}
+});
+app.addEventListener('pointermove',e=>{
+  if(e.pointerType==='mouse'){if(running)mouseAim={seen:true,x:e.clientX,y:e.clientY};return;}
+  if(!pointer.active||e.pointerId!==pointer.id)return;
+  e.preventDefault();
+  const sensitivity=2.6,dx=(e.clientX-pointer.lastX)*sensitivity,dy=(e.clientY-pointer.lastY)*sensitivity;
+  pointer.x=e.clientX;pointer.y=e.clientY;pointer.lastX=e.clientX;pointer.lastY=e.clientY;
+  pointer.aimX+=dx;pointer.aimY+=dy;
+  const magnitude=Math.hypot(pointer.aimX,pointer.aimY),maximumAimDistance=150;
+  if(magnitude>maximumAimDistance){pointer.aimX=pointer.aimX/magnitude*maximumAimDistance;pointer.aimY=pointer.aimY/magnitude*maximumAimDistance;}
+});
 function releaseSteeringPointer(e){if(pointer.active&&e.pointerId===pointer.id){pointer.active=false;pointer.id=null;}}
 window.addEventListener('pointerup',releaseSteeringPointer);
 window.addEventListener('pointercancel',releaseSteeringPointer);
@@ -224,9 +242,11 @@ function playerSteering(dt){
   if(left||right||up||down){
     const dx=(right?1:0)-(left?1:0), dy=(down?1:0)-(up?1:0);
     if(dx||dy) target=Math.atan2(dy,dx);
-  } else if(pointer.active || mouseAim.seen){
-    const aim=pointer.active?pointer:mouseAim,head=worldToScreen(player.x,player.y),dx=aim.x-head.x,dy=aim.y-head.y;
-    if(Math.hypot(dx,dy)>18) target=Math.atan2(dy,dx);
+  } else if(pointer.active){
+    if(Math.hypot(pointer.aimX,pointer.aimY)>12)target=Math.atan2(pointer.aimY,pointer.aimX);
+  } else if(mouseAim.seen){
+    const head=worldToScreen(player.x,player.y),dx=mouseAim.x-head.x,dy=mouseAim.y-head.y;
+    if(Math.hypot(dx,dy)>18)target=Math.atan2(dy,dx);
   }
   if(target!=null){player.targetAngle=target;player.angle=target;}
 }
@@ -444,12 +464,14 @@ function drawSnake(s){
   if(!s.alive)return;
   ctx.save();
   const growth=clamp((s.desiredSegments-SETTINGS.startSegments)/180,0,1),baseRadius=SETTINGS.bodyRadius+growth*3.2;
-  ctx.shadowColor=s.glowColor||s.color;ctx.shadowBlur=s.isPlayer?3:1;
-  for(let i=s.body.length-1;i>=1;i--){
-    const bodyPoint=s.body[i];if(!visible(bodyPoint.x,bodyPoint.y,baseRadius+4))continue;
-    const point=worldToScreen(bodyPoint.x,bodyPoint.y),tailProgress=1-i/Math.max(1,s.body.length-1),r=(baseRadius*(.72+tailProgress*.28))*camera.zoom;
-    ctx.beginPath();ctx.fillStyle=i%2===0?s.color:(s.stripeColor||s.color);ctx.arc(point.x,point.y,r,0,Math.PI*2);ctx.fill();
-    ctx.beginPath();ctx.strokeStyle='rgba(255,255,255,.09)';ctx.lineWidth=Math.max(.55,camera.zoom);ctx.arc(point.x-r*.12,point.y-r*.12,r*.82,Math.PI*.92,Math.PI*1.72);ctx.stroke();
+  const sampleStep=Math.max(2,Math.ceil(s.body.length/140)),points=[];
+  for(let i=0;i<s.body.length;i+=sampleStep){const bodyPoint=s.body[i];if(visible(bodyPoint.x,bodyPoint.y,baseRadius+12))points.push(worldToScreen(bodyPoint.x,bodyPoint.y));}
+  if(points.length>1){
+    const bodyPath=new Path2D();bodyPath.moveTo(points[0].x,points[0].y);for(let i=1;i<points.length;i++)bodyPath.lineTo(points[i].x,points[i].y);
+    const tail=points[points.length-1],bodyGradient=ctx.createLinearGradient(points[0].x,points[0].y,tail.x,tail.y);
+    bodyGradient.addColorStop(0,s.color);bodyGradient.addColorStop(1,s.stripeColor||s.color);
+    ctx.lineCap='round';ctx.lineJoin='round';ctx.strokeStyle=bodyGradient;ctx.lineWidth=baseRadius*2*camera.zoom;ctx.shadowColor=s.glowColor||s.color;ctx.shadowBlur=s.isPlayer?3:1;ctx.stroke(bodyPath);
+    ctx.shadowBlur=0;ctx.strokeStyle='rgba(255,255,255,.1)';ctx.lineWidth=Math.max(1.2,baseRadius*.28*camera.zoom);ctx.stroke(bodyPath);
   }
   const h=worldToScreen(s.x,s.y), r=(SETTINGS.headRadius+growth*3.5)*camera.zoom;
   ctx.beginPath();ctx.fillStyle=shiftedHeadColor(s.color);ctx.shadowColor=s.glowColor||s.color;ctx.shadowBlur=s.isPlayer?5:2;ctx.arc(h.x,h.y,r,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;
